@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
 import LanguageSwitcher from "../language-switcher/LanguageSwitcher";
 import { Locale } from "@/lib/i18n";
 import { useState, useEffect } from "react";

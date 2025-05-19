@@ -8,26 +8,26 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Apple HIG 색상 시스템
-        'apple-blue': '#007AFF',
-        'apple-indigo': '#5856D6',
-        'apple-purple': '#AF52DE',
-        'apple-pink': '#FF2D55',
-        'apple-red': '#FF3B30',
-        'apple-orange': '#FF9500',
-        'apple-yellow': '#FFCC00',
-        'apple-green': '#34C759',
-        'apple-teal': '#5AC8FA',
-        'apple-gray': {
-          1: '#8E8E93',
-          2: '#AEAEB2',
-          3: '#C7C7CC',
-          4: '#D1D1D6',
-          5: '#E5E5EA',
-          6: '#F2F2F7',
-        },
-        'bm-dark': '#2D2D2D', // 브릿지메이커스 어두운 배경색
-        'bm-accent': '#cba967', // 브릿지메이커스 포인트 색상
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
+        card: 'var(--card)',
+        'card-foreground': 'var(--card-foreground)',
+        popover: 'var(--popover)',
+        'popover-foreground': 'var(--popover-foreground)',
+        primary: 'var(--primary)',
+        'primary-foreground': 'var(--primary-foreground)',
+        secondary: 'var(--secondary)',
+        'secondary-foreground': 'var(--secondary-foreground)',
+        muted: 'var(--muted)',
+        'muted-foreground': 'var(--muted-foreground)',
+        accent: 'var(--accent)',
+        'accent-foreground': 'var(--accent-foreground)',
+        destructive: 'var(--destructive)',
+        border: 'var(--border)',
+        input: 'var(--input)',
+        ring: 'var(--ring)',
+        'bm-dark': '#2D2D2D',
+        'bm-accent': '#cba967',
       },
       fontFamily: {
         'sf-pro': ['SF Pro Display', 'Inter', 'sans-serif'],
@@ -54,7 +54,13 @@ module.exports = {
       },
       animation: {
         'fadeIn': 'fadeIn 0.2s ease-out forwards'
-      }
+      },
+      borderRadius: {
+        'sm': 'var(--radius-sm)',
+        'md': 'var(--radius-md)',
+        'lg': 'var(--radius-lg)',
+        'xl': 'var(--radius-xl)',
+      },
     },
   },
   plugins: [],

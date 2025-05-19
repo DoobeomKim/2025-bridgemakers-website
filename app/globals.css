@@ -1,4 +1,7 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -113,9 +116,6 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
   body {
     @apply bg-background text-foreground;
   }
@@ -156,15 +156,32 @@ body {
 .button-secondary {
   background-color: transparent;
   color: #cba967;
-  border: 2px solid #cba967;
   border-radius: 8px;
   padding: 12px 24px;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+  position: relative;
+}
+
+.button-secondary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  padding: 2px;
+  background: linear-gradient(to right, #cba967, #b99a58);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
 .button-secondary:hover {
   background-color: #cba967;
   color: #FFFFFF;
+}
+
+.button-secondary:hover::after {
+  opacity: 0;
 }
 
 .button-text {
@@ -534,15 +551,17 @@ body {
 
 /* Feature cards styles */
 .feature-card {
-  background: rgba(8, 21, 49, 0.2);
-  border: 1px solid rgba(46, 54, 95, 0.3);
-  backdrop-filter: blur(8px);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(203, 169, 103, 0.15);
 }
 
 /* 유튜브 플레이어 커스텀 스타일 */

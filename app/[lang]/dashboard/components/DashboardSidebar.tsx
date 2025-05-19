@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   HomeIcon,
   UserIcon,
@@ -10,10 +10,9 @@ import {
   ArrowRightOnRectangleIcon,
   ShieldCheckIcon
 } from "@heroicons/react/24/outline";
-import { useClerk } from "@clerk/nextjs";
 import { Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, signOut } from "@/lib/auth";
 
 interface SidebarProps {
   locale: Locale;
@@ -31,7 +30,7 @@ interface SidebarProps {
 
 export default function DashboardSidebar({ locale, translations, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
-  const clerk = useClerk();
+  const router = useRouter();
   const [userLevel, setUserLevel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,8 +51,14 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
   };
 
   const handleLogout = async () => {
-    await clerk.signOut();
-    window.location.href = `/${locale}`;
+    const result = await signOut();
+    if (result.success) {
+      router.push(`/${locale}`);
+    } else {
+      console.error('로그아웃 실패:', result.error);
+      // 실패하더라도 홈으로 리다이렉트
+      router.push(`/${locale}`);
+    }
   };
 
   // 기본 메뉴 아이템

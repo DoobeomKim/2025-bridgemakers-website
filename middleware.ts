@@ -1,26 +1,10 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-// 공개 경로 정의
-const isPublicRoute = createRouteMatcher([
-  "/", 
-  "/api/webhooks(.*)", 
-  "/about", 
-  "/(.+)/work", 
-  "/(.+)/work/project/(.*)",
-  "/(.+)/about",
-  "/(.+)/contact",
-  "/(.+)/services(.*)"
-]);
-
-export default clerkMiddleware((auth, req) => {
-  // 모든 대시보드 관련 경로는 보호됩니다
-  if (req.url.includes("/dashboard")) {
-    auth.protect();
-  } else if (!isPublicRoute(req)) {
-    // 공개 경로가 아닌 모든 경로도 보호
-    auth.protect();
-  }
-});
+// 임시로 모든 요청을 허용하는 미들웨어
+export function middleware(request: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
