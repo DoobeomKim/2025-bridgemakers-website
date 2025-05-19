@@ -1,3 +1,5 @@
+"use client";
+
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';

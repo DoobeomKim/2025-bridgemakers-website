@@ -8,6 +8,7 @@ import { Locale } from '@/lib/i18n';
 import { Combobox } from '@headlessui/react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { ProjectTag } from '@/lib/database.types';
 
 interface ProjectCreateModalProps {
   isOpen: boolean;
@@ -100,9 +101,9 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
 
   // 태그 관련 상태 추가
-  const [tags, setTags] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [tags, setTags] = useState<ProjectTag[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [selectedTags, setSelectedTags] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedTags, setSelectedTags] = useState<Pick<ProjectTag, 'id' | 'name'>[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
 
   // 갤러리 이미지 관련 상태 추가
@@ -305,15 +306,15 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
     const existingTag = tags.find(tag => tag.name.toLowerCase() === tagInput.toLowerCase());
 
     if (existingTag) {
-      setSelectedTags([...selectedTags, { id: existingTag.id, name: existingTag.name }]);
+      setSelectedTags(prevSelectedTags => [...prevSelectedTags, { id: existingTag.id, name: existingTag.name }]);
       setForm(prev => ({ ...prev, tags: [...prev.tags, existingTag.id] }));
     } else {
       // 새 태그 생성
       const result = await createTag(tagInput);
-      if (result.success) {
-        const newTag = result.data;
-        setTags([...tags, newTag]);
-        setSelectedTags([...selectedTags, { id: newTag.id, name: newTag.name }]);
+      if (result.success && result.data && 'id' in result.data && 'name' in result.data) {
+        const newTag: ProjectTag = result.data;
+        setTags(prevTags => [...prevTags, newTag]);
+        setSelectedTags(prevSelectedTags => [...prevSelectedTags, { id: newTag.id, name: newTag.name }]);
         setForm(prev => ({ ...prev, tags: [...prev.tags, newTag.id] }));
       }
     }
@@ -452,16 +453,16 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
 
       const result = await createProject(projectData);
       
-      if (!result?.id) {
-        throw new Error("프로젝트 생성 중 오류가 발생했습니다");
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "프로젝트 생성 중 오류가 발생했습니다");
       }
 
       // 갤러리 이미지 업로드 및 연결
-      await uploadGalleryImages(result.id);
+      await uploadGalleryImages(result.data.id);
 
       // 태그 연결
       if (form.tags.length > 0) {
-        await linkTagsToProject(result.id, form.tags);
+        await linkTagsToProject(result.data.id, form.tags);
       }
 
       onSuccess();

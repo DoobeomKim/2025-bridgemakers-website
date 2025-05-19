@@ -16,7 +16,6 @@ export default function PublicLayout({
     <div className="flex flex-col min-h-screen">
       <Header
         locale={locale}
-        isAuthenticated={false}
         translations={{
           login: translations.login,
           register: translations.register,

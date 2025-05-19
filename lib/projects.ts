@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { generateSlug } from "./utils";
+import { ProjectData } from "./utils";
 
 interface ProjectTagRelation {
   project_tags: {
@@ -99,7 +100,17 @@ export async function getProjects(options?: {
   }
 }
 
-export async function getProjectById(id: string) {
+interface ProjectWithDetails extends Omit<ProjectData, 'tags'> {
+  id: string;
+  tags: ProjectTag[];
+  project_images?: {
+    id: string;
+    image_url: string;
+    sort_order: number;
+  }[];
+}
+
+export async function getProjectById(id: string): Promise<ProjectWithDetails | null> {
   try {
     if (!id) {
       console.error("프로젝트 ID가 제공되지 않았습니다.");
@@ -126,7 +137,7 @@ export async function getProjectById(id: string) {
     return {
       ...data,
       tags: data.project_tag_relations?.map((relation: ProjectTagRelation) => relation.project_tags) || [],
-      images: data.project_images || []
+      project_images: data.project_images || []
     };
   } catch (err) {
     console.error(`프로젝트 상세 조회 중 예외 발생 (ID: ${id}):`, err);
@@ -138,7 +149,7 @@ export async function createProject(projectData: any) {
   try {
     // slug 생성 (한글 제목을 로마자로 변환 후 처리)
     if (!projectData.slug) {
-      projectData.slug = generateSlug(projectData.title);
+      projectData.slug = generateSlug(projectData);
     }
     
     const { data, error } = await supabase
@@ -197,7 +208,7 @@ export async function updateProject(id: string, updates: any) {
       }
 
       // 새로운 태그 관계 생성
-      const relations = tagIds.map(tagId => ({
+      const relations = tagIds.map((tagId: string) => ({
         project_id: id,
         tag_id: tagId
       }));
@@ -221,6 +232,10 @@ export async function updateProject(id: string, updates: any) {
 
 export async function updateProjectsVisibility(projectIds: string[], visibility: 'public' | 'private') {
   try {
+    if (!projectIds.length) {
+      return { success: false, error: "프로젝트 ID가 제공되지 않았습니다." };
+    }
+
     const { data, error } = await supabase
       .from("projects")
       .update({ visibility })
@@ -229,32 +244,37 @@ export async function updateProjectsVisibility(projectIds: string[], visibility:
 
     if (error) {
       console.error("프로젝트 상태 업데이트 오류:", error.message);
-      return false;
+      return { success: false, error: error.message };
     }
 
-    return true;
-  } catch (err) {
+    return { success: true, data };
+  } catch (err: any) {
     console.error("프로젝트 상태 업데이트 중 예외 발생:", err);
-    return false;
+    return { success: false, error: err.message || "알 수 없는 오류가 발생했습니다." };
   }
 }
 
 export async function deleteProjects(projectIds: string[]) {
   try {
+    if (!projectIds.length) {
+      return { success: false, error: "프로젝트 ID가 제공되지 않았습니다." };
+    }
+
+    // 프로젝트 삭제
     const { error } = await supabase
       .from("projects")
       .delete()
-      .in('id', projectIds);
+      .in("id", projectIds);
 
     if (error) {
-      console.error("프로젝트 삭제 오류:", error.message);
-      return false;
+      console.error(`프로젝트 삭제 오류:`, error.message);
+      return { success: false, error: error.message };
     }
 
-    return true;
-  } catch (err) {
-    console.error("프로젝트 삭제 중 예외 발생:", err);
-    return false;
+    return { success: true };
+  } catch (err: any) {
+    console.error(`프로젝트 삭제 중 예외 발생:`, err);
+    return { success: false, error: err.message || "알 수 없는 오류가 발생했습니다." };
   }
 }
 
@@ -275,8 +295,18 @@ export async function getProjectStats(): Promise<ProjectStats[]> {
   }
 }
 
+interface ProjectTag {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 // 모든 태그 가져오기
-export async function getAllTags() {
+export async function getAllTags(): Promise<{ 
+  success: boolean; 
+  error?: string; 
+  data: ProjectTag[] 
+}> {
   const { data: tags, error } = await supabase
     .from('project_tags')
     .select('*')
@@ -284,14 +314,18 @@ export async function getAllTags() {
 
   if (error) {
     console.error('Error fetching tags:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, data: [] };
   }
 
-  return { success: true, data: tags };
+  return { success: true, data: tags || [] };
 }
 
 // 새 태그 생성
-export async function createTag(name: string) {
+export async function createTag(name: string): Promise<{
+  success: boolean;
+  error?: string;
+  data?: ProjectTag;
+}> {
   const slug = name.toLowerCase().replace(/\s+/g, '-');
   
   const { data: tag, error } = await supabase

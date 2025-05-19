@@ -181,7 +181,13 @@ export interface Database {
 
 export type Project = Database['public']['Tables']['projects']['Row'];
 export type ProjectImage = Database['public']['Tables']['project_images']['Row'];
-export type ProjectTag = Database['public']['Tables']['project_tags']['Row'];
+export type ProjectTag = {
+  id: string;
+  name: string;
+  slug: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export interface ProjectWithDetails extends Project {
   images?: ProjectImage[];

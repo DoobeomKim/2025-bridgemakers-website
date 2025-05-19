@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
 
 export async function POST() {
   try {
-    // Clerk에서 현재 인증된 사용자 정보 가져오기
-    const user = await currentUser();
+    const cookieStore = cookies();
+    const supabaseCookie = cookieStore.get('sb-access-token');
     
-    if (!user) {
+    if (!supabaseCookie) {
+      return NextResponse.json(
+        { error: "인증되지 않은 사용자입니다." },
+        { status: 401 }
+      );
+    }
+
+    // Supabase에서 현재 사용자 정보 가져오기
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
       return NextResponse.json(
         { error: "인증되지 않은 사용자입니다." },
         { status: 401 }
@@ -19,8 +29,7 @@ export async function POST() {
       .from("profiles")
       .upsert({
         id: user.id,
-        email: user.emailAddresses[0].emailAddress,
-        username: user.username || user.firstName,
+        email: user.email,
         updated_at: new Date().toISOString(),
       })
       .select();

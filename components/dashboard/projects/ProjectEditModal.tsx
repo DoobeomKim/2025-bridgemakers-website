@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, MouseEvent, ChangeEvent, DragEvent, useEffect } from 'react';
-import { XMarkIcon, PhotoIcon, EyeIcon, EyeSlashIcon, ChevronUpDownIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PhotoIcon, EyeIcon, EyeSlashIcon, ChevronUpDownIcon, PlusIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { updateProject, getProjectById, getAllTags, createTag, linkTagsToProject } from '@/lib/projects';
 import { uploadImageToStorage } from '@/lib/imageUtils';
 import { Locale } from '@/lib/i18n';
@@ -14,7 +14,6 @@ import Image from 'next/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Project, ProjectImage, ProjectTag } from '@/lib/database.types';
-import { ShareIcon } from '@heroicons/react/24/outline';
 
 interface ProjectEditModalProps {
   isOpen: boolean;
@@ -53,6 +52,13 @@ const defaultIndustries = [
   { id: 'other', name: '기타' },
 ];
 
+// 폼 상태 타입 정의
+interface ProjectFormData extends ProjectData {
+  tags: string[];  // tags를 필수 필드로 정의
+  categoryName: string;
+  industryName: string;
+}
+
 export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, projectId }: ProjectEditModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,23 +80,24 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     };
   }, [isOpen, onClose]);
 
-  const [form, setForm] = useState<ProjectData>({
+  // 폼 상태 초기화
+  const [form, setForm] = useState<ProjectFormData>({
     title: "",
     description: "",
     content: "",
     category: "",
-    category_name: "",
+    categoryName: "",
     client: "",
     date: new Date().toISOString().split('T')[0],
     country: "",
     industry: "",
-    industry_name: "",
+    industryName: "",
     image_url: "",
     video_url: "",
     video_thumbnail_url: "",
     visibility: "private" as 'public' | 'private',
     slug: "",
-    tags: [] as string[],
+    tags: [],
   });
 
   const [saving, setSaving] = useState(false);
@@ -110,9 +117,9 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
 
   // 태그 관련 상태 추가
-  const [tags, setTags] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [tags, setTags] = useState<ProjectTag[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [selectedTags, setSelectedTags] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedTags, setSelectedTags] = useState<Pick<ProjectTag, 'id' | 'name'>[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
 
   // 갤러리 이미지 관련 상태 추가
@@ -148,18 +155,18 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
               description: data.description || "",
               content: data.content || "",
               category: data.category || "",
-              category_name: data.category || "",
+              categoryName: data.category_name || "",
               client: data.client || "",
               date: data.date || new Date().toISOString().split('T')[0],
               country: data.country || "",
               industry: data.industry || "",
-              industry_name: data.industry || "",
+              industryName: data.industry_name || "",
               image_url: data.image_url || "",
               video_url: data.video_url || "",
               video_thumbnail_url: data.video_thumbnail_url || "",
               visibility: data.visibility || "private",
               slug: data.slug || "",
-              tags: data.tags?.map(tag => tag.id) || [],
+              tags: data.tags.map(tag => tag.id),
             });
 
             // 이미지 URL이 있으면 미리보기 설정
@@ -173,12 +180,10 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
             }
 
             // 선택된 태그 설정
-            if (data.tags) {
-              setSelectedTags(data.tags.map(tag => ({
-                id: tag.id,
-                name: tag.name
-              })));
-            }
+            setSelectedTags(data.tags.map(tag => ({
+              id: tag.id,
+              name: tag.name
+            })));
 
             // 갤러리 이미지 로드
             if (data.project_images && data.project_images.length > 0) {
@@ -209,13 +214,13 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     if (!tagInput.trim()) return;
 
     // 이미 선택된 태그인지 확인
-    if (selectedTags.some(tag => tag.name.toLowerCase() === tagInput.toLowerCase())) {
+    if (selectedTags.some((tag: Pick<ProjectTag, 'id' | 'name'>) => tag.name.toLowerCase() === tagInput.toLowerCase())) {
       setTagInput('');
       return;
     }
 
     // 기존 태그에서 찾기
-    const existingTag = tags.find(tag => tag.name.toLowerCase() === tagInput.toLowerCase());
+    const existingTag = tags.find((tag: ProjectTag) => tag.name.toLowerCase() === tagInput.toLowerCase());
 
     if (existingTag) {
       setSelectedTags([...selectedTags, { id: existingTag.id, name: existingTag.name }]);
@@ -223,7 +228,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     } else {
       // 새 태그 생성
       const result = await createTag(tagInput);
-      if (result.success) {
+      if (result.success && result.data) {
         const newTag = result.data;
         setTags([...tags, newTag]);
         setSelectedTags([...selectedTags, { id: newTag.id, name: newTag.name }]);
@@ -250,20 +255,26 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     if (fieldName === 'slug') {
       setForm(prevForm => ({
         ...prevForm,
-        slug: newValue
+        slug: newValue,
+        tags: prevForm.tags // 기존 tags 값을 유지
       }));
     } else {
       // 다른 필드들은 그냥 업데이트
       setForm(prevForm => ({
         ...prevForm,
-        [fieldName]: newValue
+        [fieldName]: newValue,
+        tags: prevForm.tags // 기존 tags 값을 유지
       }));
     }
   };
 
   // 공개 설정 변경 핸들러
   const handleVisibilityChange = (value: 'public' | 'private') => {
-    setForm({ ...form, visibility: value });
+    setForm(prevForm => ({
+      ...prevForm,
+      visibility: value,
+      tags: prevForm.tags // 기존 tags 값을 유지
+    }));
   };
 
   // 이미지 선택 버튼 클릭 처리
@@ -336,14 +347,13 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
 
   // 카테고리 변경 핸들러 수정
   const handleCategoryChange = (value: string) => {
-    // 기존 카테고리에서 찾기
     const selectedCategory = defaultCategories.find(cat => cat.id === value);
     const newCategoryName = selectedCategory ? selectedCategory.name : value;
     
-    setForm((prevForm: ProjectData) => ({
+    setForm((prevForm: ProjectFormData) => ({
       ...prevForm,
       category: value,
-      category_name: newCategoryName
+      categoryName: newCategoryName
     }));
   };
 
@@ -355,20 +365,19 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     setForm(prevForm => ({
       ...prevForm,
       category: newValue,
-      category_name: newValue
+      categoryName: newValue
     }));
   };
 
   // 산업 변경 핸들러 수정
   const handleIndustryChange = (value: string) => {
-    // 기존 산업에서 찾기
     const selectedIndustry = defaultIndustries.find(ind => ind.id === value);
     const newIndustryName = selectedIndustry ? selectedIndustry.name : value;
     
-    setForm((prevForm: ProjectData) => ({
+    setForm((prevForm: ProjectFormData) => ({
       ...prevForm,
       industry: value,
-      industry_name: newIndustryName
+      industryName: newIndustryName
     }));
   };
 
@@ -380,7 +389,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     setForm(prevForm => ({
       ...prevForm,
       industry: newValue,
-      industry_name: newValue
+      industryName: newValue
     }));
   };
 
@@ -388,7 +397,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   const handleGenerateSlug = () => {
     const newSlug = generateSlug({
       client: form.client,
-      category: form.category_name,
+      category: form.categoryName,
       date: form.date
     });
     
@@ -468,7 +477,11 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   // 비디오 URL 변경 핸들러
   const handleVideoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
-    setForm((prevForm: ProjectData) => ({ ...prevForm, video_url: url }));
+    setForm(prevForm => ({
+      ...prevForm,
+      video_url: url,
+      tags: prevForm.tags // 기존 tags 값을 유지
+    }));
   };
 
   // 갤러리 이미지 선택 처리
@@ -599,7 +612,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
 
     try {
       // 필수 필드 검증
-      if (!form.title || !form.description || !form.category) {
+      if (!form.title || !form.description || !form.categoryName) {
         throw new Error("필수 항목을 모두 입력해주세요");
       }
 
