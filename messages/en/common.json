@@ -1,0 +1,15 @@
+{
+  "welcome": "Welcome to Bridge Makers!",
+  "login": "Login",
+  "register": "Register",
+  "dashboard": "Dashboard",
+  "about": "About",
+  "services": "Services",
+  "work": "Work",
+  "contact": "Contact us",
+  "languageName": "English",
+  "loading": "Loading...",
+  "error": "An error occurred.",
+  "back": "Go back",
+  "save": "Save"
+} 

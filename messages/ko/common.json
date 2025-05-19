@@ -1,0 +1,15 @@
+{
+  "welcome": "Bridge Makers에 오신 것을 환영합니다!",
+  "login": "로그인",
+  "register": "회원가입",
+  "dashboard": "대시보드",
+  "about": "About",
+  "services": "Services",
+  "work": "Work",
+  "contact": "Contact us",
+  "languageName": "한국어",
+  "loading": "로딩 중...",
+  "error": "오류가 발생했습니다.",
+  "back": "뒤로 가기",
+  "save": "저장"
+} 
