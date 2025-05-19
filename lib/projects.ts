@@ -180,6 +180,10 @@ export async function updateProject(id: string, updates: any) {
     // 태그 정보를 별도로 저장하고 updates에서 제거
     const tagIds = updates.tags;
     delete updates.tags;
+
+    // categoryName과 industryName 제거
+    delete updates.categoryName;
+    delete updates.industryName;
     
     // 프로젝트 정보 업데이트
     const { data, error } = await supabase
@@ -326,20 +330,49 @@ export async function createTag(name: string): Promise<{
   error?: string;
   data?: ProjectTag;
 }> {
-  const slug = name.toLowerCase().replace(/\s+/g, '-');
-  
-  const { data: tag, error } = await supabase
-    .from('project_tags')
-    .insert([{ name, slug }])
-    .select()
-    .single();
+  try {
+    // 먼저 동일한 이름의 태그가 있는지 확인
+    const { data: existingTag } = await supabase
+      .from('project_tags')
+      .select('*')
+      .ilike('name', name)
+      .single();
 
-  if (error) {
-    console.error('Error creating tag:', error);
-    return { success: false, error: error.message };
+    // 이미 존재하는 태그가 있으면 그것을 반환
+    if (existingTag) {
+      return { success: true, data: existingTag };
+    }
+
+    // 새 태그 생성
+    const slug = name.toLowerCase().replace(/\s+/g, '-');
+    const { data: newTag, error } = await supabase
+      .from('project_tags')
+      .insert([{ name, slug }])
+      .select()
+      .single();
+
+    if (error) {
+      // 동시성 문제로 인한 중복 생성 시도 시 기존 태그 반환
+      if (error.code === '23505') {
+        const { data: conflictTag } = await supabase
+          .from('project_tags')
+          .select('*')
+          .ilike('name', name)
+          .single();
+          
+        if (conflictTag) {
+          return { success: true, data: conflictTag };
+        }
+      }
+      console.error('Error creating tag:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: newTag };
+  } catch (err: any) {
+    console.error('Error in createTag:', err);
+    return { success: false, error: err.message };
   }
-
-  return { success: true, data: tag };
 }
 
 // 프로젝트에 태그 연결

@@ -596,3 +596,21 @@ iframe[src*="youtube.com"] {
   position: relative;
   z-index: 1;
 }
+
+/* 기본 스크롤바 스타일 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A2234;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cba967;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b99a58;
+}

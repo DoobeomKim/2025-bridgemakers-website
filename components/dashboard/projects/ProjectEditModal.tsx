@@ -55,8 +55,6 @@ const defaultIndustries = [
 // 폼 상태 타입 정의
 interface ProjectFormData extends ProjectData {
   tags: string[];  // tags를 필수 필드로 정의
-  categoryName: string;
-  industryName: string;
 }
 
 export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, projectId }: ProjectEditModalProps) {
@@ -86,12 +84,10 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     description: "",
     content: "",
     category: "",
-    categoryName: "",
     client: "",
     date: new Date().toISOString().split('T')[0],
     country: "",
     industry: "",
-    industryName: "",
     image_url: "",
     video_url: "",
     video_thumbnail_url: "",
@@ -155,12 +151,10 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
               description: data.description || "",
               content: data.content || "",
               category: data.category || "",
-              categoryName: data.category_name || "",
               client: data.client || "",
               date: data.date || new Date().toISOString().split('T')[0],
               country: data.country || "",
               industry: data.industry || "",
-              industryName: data.industry_name || "",
               image_url: data.image_url || "",
               video_url: data.video_url || "",
               video_thumbnail_url: data.video_thumbnail_url || "",
@@ -209,34 +203,68 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     }
   }, [isOpen, projectId]);
 
+  // 태그 목록 로드
+  useEffect(() => {
+    const loadTags = async () => {
+      setIsLoadingTags(true);
+      try {
+        const result = await getAllTags();
+        if (result?.data) {
+          setTags(result.data);
+        }
+      } catch (error) {
+        console.error('태그 로드 오류:', error);
+      } finally {
+        setIsLoadingTags(false);
+      }
+    };
+
+    if (isOpen) {
+      loadTags();
+    }
+  }, [isOpen]);
+
   // 태그 관련 핸들러
   const handleAddTag = async () => {
     if (!tagInput.trim()) return;
 
-    // 이미 선택된 태그인지 확인
-    if (selectedTags.some((tag: Pick<ProjectTag, 'id' | 'name'>) => tag.name.toLowerCase() === tagInput.toLowerCase())) {
-      setTagInput('');
-      return;
-    }
+    try {
+      const inputTagName = tagInput.trim().toLowerCase();
 
-    // 기존 태그에서 찾기
-    const existingTag = tags.find((tag: ProjectTag) => tag.name.toLowerCase() === tagInput.toLowerCase());
+      // 이미 선택된 태그인지 확인
+      const isAlreadySelected = selectedTags.some(tag => 
+        tag.name.toLowerCase() === inputTagName
+      );
 
-    if (existingTag) {
-      setSelectedTags([...selectedTags, { id: existingTag.id, name: existingTag.name }]);
-      setForm(prev => ({ ...prev, tags: [...prev.tags, existingTag.id] }));
-    } else {
-      // 새 태그 생성
-      const result = await createTag(tagInput);
-      if (result.success && result.data) {
-        const newTag = result.data;
-        setTags([...tags, newTag]);
-        setSelectedTags([...selectedTags, { id: newTag.id, name: newTag.name }]);
-        setForm(prev => ({ ...prev, tags: [...prev.tags, newTag.id] }));
+      if (isAlreadySelected) {
+        setTagInput('');
+        return;
       }
-    }
 
-    setTagInput('');
+      // 기존 태그 목록에서 찾기
+      const existingTag = tags.find(tag => 
+        tag.name.toLowerCase() === inputTagName
+      );
+
+      if (existingTag) {
+        // 이미 존재하는 태그 선택
+        setSelectedTags(prev => [...prev, existingTag]);
+        setForm(prev => ({ ...prev, tags: [...prev.tags, existingTag.id] }));
+      } else {
+        // 새 태그 생성
+        const result = await createTag(tagInput.trim());
+        if (result.success && result.data) {
+          const newTag = result.data;
+          setTags(prev => [...prev, newTag]);
+          setSelectedTags(prev => [...prev, newTag]);
+          setForm(prev => ({ ...prev, tags: [...prev.tags, newTag.id] }));
+        }
+      }
+
+      setTagInput('');
+    } catch (error) {
+      console.error('태그 추가 중 오류 발생:', error);
+    }
   };
 
   // 태그 제거 핸들러
@@ -345,15 +373,11 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     handleImageFile(files[0]);
   };
 
-  // 카테고리 변경 핸들러 수정
+  // 카테고리 변경 핸들러
   const handleCategoryChange = (value: string) => {
-    const selectedCategory = defaultCategories.find(cat => cat.id === value);
-    const newCategoryName = selectedCategory ? selectedCategory.name : value;
-    
-    setForm((prevForm: ProjectFormData) => ({
+    setForm(prevForm => ({
       ...prevForm,
-      category: value,
-      categoryName: newCategoryName
+      category: value
     }));
   };
 
@@ -365,19 +389,14 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     setForm(prevForm => ({
       ...prevForm,
       category: newValue,
-      categoryName: newValue
     }));
   };
 
-  // 산업 변경 핸들러 수정
+  // 산업 변경 핸들러
   const handleIndustryChange = (value: string) => {
-    const selectedIndustry = defaultIndustries.find(ind => ind.id === value);
-    const newIndustryName = selectedIndustry ? selectedIndustry.name : value;
-    
-    setForm((prevForm: ProjectFormData) => ({
+    setForm(prevForm => ({
       ...prevForm,
-      industry: value,
-      industryName: newIndustryName
+      industry: value
     }));
   };
 
@@ -389,7 +408,6 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     setForm(prevForm => ({
       ...prevForm,
       industry: newValue,
-      industryName: newValue
     }));
   };
 
@@ -397,7 +415,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   const handleGenerateSlug = () => {
     const newSlug = generateSlug({
       client: form.client,
-      category: form.categoryName,
+      category: form.category,
       date: form.date
     });
     
@@ -607,84 +625,55 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setError("");
+    if (saving) return;
 
     try {
       // 필수 필드 검증
-      if (!form.title || !form.description || !form.categoryName) {
+      if (!form.title || !form.description || !form.category) {
         throw new Error("필수 항목을 모두 입력해주세요");
       }
 
-      // 이미지 파일이 선택되었는지 확인
-      if (!imageFile && !form.image_url) {
-        throw new Error("프로젝트 대표 이미지를 선택해주세요");
-      }
+      setSaving(true);
+      setError("");
 
-      // 새 이미지가 선택되었다면 업로드
-      let finalImageUrl = form.image_url;
+      // 새로운 이미지가 있으면 업로드
       if (imageFile) {
         setUploadingImage(true);
-        try {
-          finalImageUrl = await uploadImageToStorage(imageFile);
-          
-          // URL이 유효한지 확인
-          if (!finalImageUrl || typeof finalImageUrl !== 'string' || !finalImageUrl.startsWith('http')) {
-            throw new Error(`유효하지 않은 이미지 URL: ${finalImageUrl}`);
-          }
-        } catch (uploadError: any) {
-          throw new Error(`이미지 업로드 실패: ${uploadError.message}`);
-        } finally {
-          setUploadingImage(false);
+        const imageUrl = await uploadImageToStorage(imageFile);
+        if (imageUrl) {
+          form.image_url = imageUrl;
         }
+        setUploadingImage(false);
       }
 
-      // 새 썸네일이 선택되었다면 업로드
-      let finalThumbnailUrl = form.video_thumbnail_url;
+      // 새로운 비디오 썸네일이 있으면 업로드
       if (thumbnailFile) {
         setUploadingThumbnail(true);
-        try {
-          finalThumbnailUrl = await uploadImageToStorage(thumbnailFile);
-          
-          // URL이 유효한지 확인
-          if (!finalThumbnailUrl || typeof finalThumbnailUrl !== 'string' || !finalThumbnailUrl.startsWith('http')) {
-            throw new Error(`유효하지 않은 썸네일 URL: ${finalThumbnailUrl}`);
-          }
-        } catch (uploadError: any) {
-          throw new Error(`썸네일 업로드 실패: ${uploadError.message}`);
-        } finally {
-          setUploadingThumbnail(false);
+        const thumbnailUrl = await uploadImageToStorage(thumbnailFile);
+        if (thumbnailUrl) {
+          form.video_thumbnail_url = thumbnailUrl;
         }
+        setUploadingThumbnail(false);
       }
 
-      // 최종 데이터로 프로젝트 업데이트
-      const projectData = {
-        ...form,
-        image_url: finalImageUrl,
-        video_thumbnail_url: finalThumbnailUrl
-      };
-
-      // 프로젝트 업데이트
-      const result = await updateProject(projectId, projectData);
+      // 갤러리 이미지 업로드 및 정리
+      const galleryResult = await uploadGalleryImages();
       
+      // 프로젝트 데이터 업데이트
+      const result = await updateProject(projectId, {
+        ...form,
+        updated_at: new Date().toISOString()
+      });
+
       if (!result) {
         throw new Error("프로젝트 수정 중 오류가 발생했습니다");
       }
 
-      // 갤러리 이미지 업로드 및 연결
-      await uploadGalleryImages();
-
-      // 태그 연결 업데이트
-      if (form.tags.length > 0) {
-        // 기존 태그 관계 삭제
-        await linkTagsToProject(projectId, form.tags);
-      }
-      
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || "저장에 실패했습니다");
-      console.error('프로젝트 수정 오류:', err);
+      console.error("프로젝트 수정 오류:", err);
+      setError(err.message || "프로젝트 수정 중 오류가 발생했습니다");
     } finally {
       setSaving(false);
     }
@@ -1192,9 +1181,8 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                               key={tag.id}
                               type="button"
                               onClick={() => {
-                                setSelectedTags([...selectedTags, { id: tag.id, name: tag.name }]);
-                                setForm(prev => ({ ...prev, tags: [...prev.tags, tag.id] }));
-                                setTagInput('');
+                                setTagInput(tag.name);
+                                handleAddTag();
                               }}
                               className="px-3 py-1 rounded-full text-sm bg-[#232b3d] text-[#8B8EA0] border border-[#353f54] hover:border-gold/30 transition-colors"
                             >
