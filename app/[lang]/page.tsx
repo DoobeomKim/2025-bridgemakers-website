@@ -6,8 +6,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import InstagramFeed from "../../components/InstagramFeed";
+import { supabase } from "@/lib/supabase";
 
-export default function Home({
+export default async function Home({
   params,
 }: {
   params: { lang: string };
@@ -49,6 +50,31 @@ export default function Home({
     }
   ];
 
+  // 프로젝트 데이터 가져오기
+  const { data: projects } = await supabase
+    .from('projects')
+    .select(`
+      id,
+      title,
+      slug,
+      client,
+      image_url,
+      category
+    `)
+    .eq('visibility', 'public')
+    .order('date', { ascending: false })
+    .limit(4);
+
+  // 프로젝트 데이터 매핑
+  const formattedProjects = (projects || []).map(project => ({
+    id: project.id,
+    title: project.title,
+    client: project.client,
+    image: project.image_url,
+    category: project.category,
+    href: `/${locale}/work?project=${project.slug}`
+  }));
+
   /*
   // 케이스 스터디 항목 - 사용하지 않음
   const caseStudies = [
@@ -72,7 +98,7 @@ export default function Home({
   return (
     <PublicLayout locale={locale}>
       {/* 히어로 섹션 - 이미지와 함께 */}
-      <div className="relative h-[90vh] sm:h-[80vh] overflow-hidden bg-black">
+      <div className="relative h-[75vh] sm:h-[80vh] md:h-[90vh] overflow-hidden bg-black">
         {/* 배경 이미지 제거하고 순수 검은 배경만 사용 */}
         
         {/* 금색 뭉개구름 애니메이션 효과 */}
@@ -88,7 +114,7 @@ export default function Home({
         </div>
         
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row h-full">
-          <div className="flex flex-col justify-center w-full md:w-2/3 py-6 sm:py-10 md:py-20">
+          <div className="flex flex-col justify-center w-full md:w-2/3 py-4 sm:py-8 md:py-20">
 
             {/* 큰 텍스트 헤드라인 */}
             <div className="relative">
@@ -163,13 +189,13 @@ export default function Home({
                       
                       {/* 비디오 플레이 버튼 */}
                       <button 
-                        className="absolute inset-0 flex items-center justify-center group play-btn-container cursor-pointer" 
+                        className="absolute inset-0 w-full h-full flex flex-col items-center justify-center group play-btn-container cursor-pointer" 
                         onClick={() => setIsVideoModalOpen(true)}
                       >
                         <div className="w-12 h-12 sm:w-16 sm:h-16 play-btn-pulse flex items-center justify-center enhanced-pulse">
                           <div className="w-0 h-0 border-t-[8px] sm:border-t-[10px] border-t-transparent border-b-[8px] sm:border-b-[10px] border-b-transparent border-l-[14px] sm:border-l-[18px] border-l-white ml-1"></div>
                         </div>
-                        <span className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 play-btn-label text-xs sm:text-sm">Play Video</span>
+                        <span className="absolute bottom-4 sm:bottom-6 text-center play-btn-label text-xs sm:text-sm">Play Video</span>
                       </button>
                     </>
                   ) : (
@@ -203,13 +229,13 @@ export default function Home({
             {/* 특징 1 */}
             <div className="feature-card rounded-xl p-4 sm:p-6 shadow-lg">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-md mb-3 sm:mb-4">
-                  <Image
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-[16px] mb-3 sm:mb-4">
+                  <img
                     src="/icons/icon_creative.svg"
                     alt="크리에이티브 전문가"
                     width={24}
                     height={24}
-                    className="text-[#cba967] sm:w-8 sm:h-8"
+                    className="w-6 h-6 sm:w-8 sm:h-8"
                   />
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2">크리에이티브 전문가</h3>
@@ -222,13 +248,13 @@ export default function Home({
             {/* 특징 2 */}
             <div className="feature-card rounded-xl p-4 sm:p-6 shadow-lg">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-md mb-3 sm:mb-4">
-                  <Image
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-[16px] mb-3 sm:mb-4">
+                  <img
                     src="/icons/icon_customized-strategy.svg"
                     alt="맞춤형 전략"
                     width={24}
                     height={24}
-                    className="text-[#cba967] sm:w-8 sm:h-8"
+                    className="w-6 h-6 sm:w-8 sm:h-8"
                   />
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2">맞춤형 전략</h3>
@@ -241,13 +267,13 @@ export default function Home({
             {/* 특징 3 */}
             <div className="feature-card rounded-xl p-4 sm:p-6 shadow-lg">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-md mb-3 sm:mb-4">
-                  <Image
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-[16px] mb-3 sm:mb-4">
+                  <img
                     src="/icons/icon_global-content.svg"
                     alt="현지 맞춤 컨텐츠"
                     width={24}
                     height={24}
-                    className="text-[#cba967] sm:w-8 sm:h-8"
+                    className="w-6 h-6 sm:w-8 sm:h-8"
                   />
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2">현지 맞춤 컨텐츠</h3>
@@ -271,94 +297,35 @@ export default function Home({
             </p>
           </div>
 
+          {/* 프로젝트 섹션 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 md:gap-8 mt-8 sm:mt-10 md:mt-12">
-            {/* 프로젝트 1 */}
-            <div className="rounded-xl sm:rounded-2xl overflow-hidden bg-[#050a16] p-3 sm:p-4 border border-[rgba(203,169,103,0.2)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(203,169,103,0.15)] transform hover:-translate-y-1">
-              <div className="relative rounded-lg sm:rounded-xl overflow-hidden mb-4 sm:mb-6 shadow-lg">
-                <Image
-                  src="/images/project-1.jpg"
-                  alt="SaaS Landing Page Project"
-                  width={800}
-                  height={450}
-                  className="w-full h-auto"
-                />
-              </div>
-              <div className="p-1 sm:p-2">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">Tech Solutions — SaaS Landing Page</h3>
-                  <span className="text-[10px] sm:text-xs text-[#cba967] bg-[rgba(203,169,103,0.1)] px-2 sm:px-3 py-1 rounded-full">SaaS</span>
+            {formattedProjects.map((project) => (
+              <Link
+                key={project.id}
+                href={project.href}
+                className="rounded-xl sm:rounded-2xl overflow-hidden bg-[#050a16] border border-[rgba(203,169,103,0.2)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(203,169,103,0.15)] transform hover:-translate-y-1"
+              >
+                <div className="relative aspect-[16/9] w-full">
+                  <Image
+                    src={project.image}
+                    alt={project.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    unoptimized
+                  />
                 </div>
-                <p className="text-[#C7C7CC] text-xs sm:text-sm mb-3 sm:mb-4">
-                  모던하고 깔끔한 SaaS 랜딩 페이지로, 기업의 소프트웨어 솔루션을 효과적으로 소개하는 웹사이트입니다.
-                </p>
-              </div>
-            </div>
-
-            {/* 프로젝트 2 */}
-            <div className="rounded-xl sm:rounded-2xl overflow-hidden bg-[#050a16] p-3 sm:p-4 border border-[rgba(203,169,103,0.2)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(203,169,103,0.15)] transform hover:-translate-y-1">
-              <div className="relative rounded-lg sm:rounded-xl overflow-hidden mb-4 sm:mb-6 shadow-lg">
-                <Image
-                  src="/images/project-2.jpg"
-                  alt="SaaS Landing Page Project"
-                  width={800}
-                  height={450}
-                  className="w-full h-auto"
-                />
-              </div>
-              <div className="p-1 sm:p-2">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">Genius — SaaS Landing Page</h3>
-                  <span className="text-[10px] sm:text-xs text-[#cba967] bg-[rgba(203,169,103,0.1)] px-2 sm:px-3 py-1 rounded-full">SaaS</span>
+                <div className="p-4 sm:p-6">
+                  <div className="flex justify-between items-center mb-2 sm:mb-3">
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">{project.title}</h3>
+                    <span className="text-[10px] sm:text-xs text-[#cba967] bg-[rgba(203,169,103,0.1)] px-2 sm:px-3 py-1 rounded-full">{project.category}</span>
+                  </div>
+                  <p className="text-[#C7C7CC] text-xs sm:text-sm">
+                    {project.client}
+                  </p>
                 </div>
-                <p className="text-[#C7C7CC] text-xs sm:text-sm mb-3 sm:mb-4">
-                  미니멀한 디자인의 SaaS 랜딩 페이지로, 심플하면서도 모던한 느낌의 웹사이트입니다.
-                </p>
-              </div>
-            </div>
-
-            {/* 프로젝트 3 */}
-            <div className="rounded-xl sm:rounded-2xl overflow-hidden bg-[#050a16] p-3 sm:p-4 border border-[rgba(203,169,103,0.2)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(203,169,103,0.15)] transform hover:-translate-y-1">
-              <div className="relative rounded-lg sm:rounded-xl overflow-hidden mb-4 sm:mb-6 shadow-lg">
-                <Image
-                  src="/images/project-3.jpg"
-                  alt="SaaS Website Template"
-                  width={800}
-                  height={450}
-                  className="w-full h-auto"
-                />
-              </div>
-              <div className="p-1 sm:p-2">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">WaveApp — SaaS Website Template</h3>
-                  <span className="text-[10px] sm:text-xs text-[#cba967] bg-[rgba(203,169,103,0.1)] px-2 sm:px-3 py-1 rounded-full">SaaS</span>
-                </div>
-                <p className="text-[#C7C7CC] text-xs sm:text-sm mb-3 sm:mb-4">
-                  SaaS와 앱 정보를 효과적으로 보여주는 웹사이트 템플릿으로, 기업의 서비스를 명확하게 전달합니다.
-                </p>
-              </div>
-            </div>
-
-            {/* 프로젝트 4 */}
-            <div className="rounded-xl sm:rounded-2xl overflow-hidden bg-[#050a16] p-3 sm:p-4 border border-[rgba(203,169,103,0.2)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(203,169,103,0.15)] transform hover:-translate-y-1">
-              <div className="relative rounded-lg sm:rounded-xl overflow-hidden mb-4 sm:mb-6 shadow-lg">
-                <Image
-                  src="/images/project-4.jpg"
-                  alt="Waitlist Landing Page"
-                  width={800}
-                  height={450}
-                  className="w-full h-auto"
-                />
-              </div>
-              <div className="p-1 sm:p-2">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">Waitlists — Waitlist Landing Page</h3>
-                  <span className="text-[10px] sm:text-xs text-[#cba967] bg-[rgba(203,169,103,0.1)] px-2 sm:px-3 py-1 rounded-full">Waitlist</span>
-                </div>
-                <p className="text-[#C7C7CC] text-xs sm:text-sm mb-3 sm:mb-4">
-                  효율적이고 세련된 대기자 명단 랜딩 페이지로, 제품 출시 전 사용자 관심을 모으는 데 최적화되어 있습니다.
-                </p>
-              </div>
-            </div>
+              </Link>
+            ))}
           </div>
 
           <div className="text-center mt-8 sm:mt-10 md:mt-12">

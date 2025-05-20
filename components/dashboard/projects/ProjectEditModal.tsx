@@ -3,7 +3,7 @@
 import { useState, useRef, MouseEvent, ChangeEvent, DragEvent, useEffect } from 'react';
 import { XMarkIcon, PhotoIcon, EyeIcon, EyeSlashIcon, ChevronUpDownIcon, PlusIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { updateProject, getProjectById, getAllTags, createTag, linkTagsToProject } from '@/lib/projects';
-import { uploadImageToStorage } from '@/lib/imageUtils';
+import { uploadImageToStorage, resizeImage } from '@/lib/imageUtils';
 import { Locale } from '@/lib/i18n';
 import { Combobox } from '@headlessui/react';
 import { generateSlug } from '@/lib/utils';
@@ -14,6 +14,9 @@ import Image from 'next/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Project, ProjectImage, ProjectTag } from '@/lib/database.types';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import DraggableGalleryImage from './DraggableGalleryImage';
 
 interface ProjectEditModalProps {
   isOpen: boolean;
@@ -121,6 +124,9 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   // 갤러리 이미지 관련 상태 추가
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  // 삭제된 이미지 ID를 추적하기 위한 상태 추가
+  const [deletedImageIds, setDeletedImageIds] = useState<string[]>([]);
 
   // 카테고리 필터링 함수
   const filteredCategories =
@@ -412,11 +418,12 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   };
 
   // slug 자동 생성 핸들러 수정
-  const handleGenerateSlug = () => {
-    const newSlug = generateSlug({
+  const handleGenerateSlug = async () => {
+    const newSlug = await generateSlug({
       client: form.client,
       category: form.category,
-      date: form.date
+      date: form.date,
+      title: form.title  // 제목 추가
     });
     
     setForm(prevForm => ({
@@ -507,19 +514,36 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
     const files = Array.from(e.target.files || []);
     const remainingSlots = 10 - galleryImages.length;
     
-    // 파일 크기 및 개수 제한 확인
+    // 파일 크기, 포맷, 비율 검증
     const validFiles = files.slice(0, remainingSlots).filter(file => {
+      // 파일 크기 검증 (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError(`${file.name}의 크기가 5MB를 초과합니다.`);
         return false;
       }
+
+      // 파일 포맷 검증
+      const validFormats = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validFormats.includes(file.type)) {
+        setError(`${file.name}은(는) 지원하지 않는 파일 형식입니다. (JPEG, PNG, WebP만 가능)`);
+        return false;
+      }
+
       return true;
     });
 
-    // 이미지 미리보기 생성
+    // 이미지 미리보기 생성 및 비율 검증
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          // 이미지 비율 검증 (16:9 = 1.77778)
+          const aspectRatio = img.width / img.height;
+          if (Math.abs(aspectRatio - 16/9) > 0.1) { // 10% 오차 허용
+            setError(`${file.name}의 비율이 16:9와 크게 다릅니다. 이미지가 왜곡될 수 있습니다.`);
+          }
+          
         setGalleryImages(prev => [
           ...prev,
           {
@@ -527,6 +551,8 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
             preview: reader.result as string
           }
         ]);
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     });
@@ -539,87 +565,90 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
   const handleRemoveGalleryImage = (index: number) => {
     setGalleryImages(prev => {
       const newImages = [...prev];
+      const removedImage = newImages[index];
+      
+      // 기존 이미지인 경우 삭제 목록에 추가
+      if (removedImage.id) {
+        setDeletedImageIds(prev => [...prev, removedImage.id!]);
+      }
+      
       URL.revokeObjectURL(newImages[index].preview); // 미리보기 URL 해제
       newImages.splice(index, 1);
       return newImages;
     });
   };
 
-  // 갤러리 이미지 순서 변경
-  const handleReorderGalleryImages = (dragIndex: number, dropIndex: number) => {
-    setGalleryImages(prev => {
-      const newImages = [...prev];
-      const [draggedImage] = newImages.splice(dragIndex, 1);
-      newImages.splice(dropIndex, 0, draggedImage);
+  // 갤러리 이미지 순서 변경 핸들러 추가
+  const moveGalleryImage = (dragIndex: number, hoverIndex: number) => {
+    setGalleryImages(prevImages => {
+      const newImages = [...prevImages];
+      const draggedImage = newImages[dragIndex];
+      newImages.splice(dragIndex, 1);
+      newImages.splice(hoverIndex, 0, draggedImage);
       return newImages;
     });
   };
 
   // 갤러리 이미지 업로드
-  const uploadGalleryImages = async () => {
-    const galleryUrls: string[] = [];
-    const existingImages = galleryImages.filter(img => !img.file && img.id);
-    const newImages = galleryImages.filter(img => img.file);
+  const uploadGalleryImages = async (projectId: string) => {
+    // 삭제된 이미지 처리
+    if (deletedImageIds.length > 0) {
+      await supabase
+        .from('project_images')
+        .delete()
+        .in('id', deletedImageIds);
+    }
 
-    // 새로운 이미지 업로드
-    if (newImages.length > 0) {
-      for (let i = 0; i < newImages.length; i++) {
-        const image = newImages[i];
+    const galleryUrls: string[] = [];
+    const existingImages: { id: string; image_url: string; }[] = [];
+
+    // 이미지 업로드 및 기존 이미지 정보 수집
+    for (let i = 0; i < galleryImages.length; i++) {
+      const image = galleryImages[i];
+      
+      if (image.id) {
+        // 기존 이미지는 URL만 보관
+        existingImages.push({
+          id: image.id,
+          image_url: image.preview
+        });
+        continue;
+      }
+
         if (!image.file) continue;
 
         try {
-          const url = await uploadImageToStorage(image.file);
+        // 새 이미지 리사이징 및 최적화
+        const { blob } = await resizeImage(image.file);
+        const optimizedFile = new File([blob], image.file.name, { type: image.file.type });
+        
+        const url = await uploadImageToStorage(optimizedFile);
           galleryUrls.push(url);
         } catch (error: any) {
           throw new Error(`갤러리 이미지 ${i + 1} 업로드 실패: ${error.message}`);
         }
-      }
     }
 
-    // 기존 이미지 삭제 (유지할 이미지 제외)
-    if (projectId) {
-      const { data: currentImages } = await supabase
-        .from('project_images')
-        .select('id')
-        .eq('project_id', projectId);
-
-      if (currentImages) {
-        const existingIds = existingImages.map(img => img.id);
-        const toDelete = currentImages
-          .filter(img => !existingIds.includes(img.id))
-          .map(img => img.id);
-
-        if (toDelete.length > 0) {
-          await supabase
-            .from('project_images')
-            .delete()
-            .in('id', toDelete);
-        }
-      }
-    }
-
-    // 새로운 이미지 데이터 생성
-    const galleryData = [
-      // 기존 이미지 유지 (순서 업데이트)
-      ...existingImages.map((img, index) => ({
-        id: img.id,
-        project_id: projectId,
-        image_url: img.preview,
-        sort_order: index
-      })),
-      // 새로운 이미지 추가
-      ...galleryUrls.map((url, index) => ({
+    // 새 이미지 데이터 생성
+    if (galleryUrls.length > 0) {
+      const newGalleryData = galleryUrls.map((url, index) => ({
         project_id: projectId,
         image_url: url,
         sort_order: existingImages.length + index
-      }))
-    ];
+      }));
 
-    // 갤러리 데이터 저장
-    if (galleryData.length > 0) {
+      // 새 이미지 저장
+          await supabase
+            .from('project_images')
+        .insert(newGalleryData);
+    }
+
+    // 기존 이미지 순서 업데이트
+    for (let i = 0; i < existingImages.length; i++) {
       await supabase
         .from('project_images')
-        .upsert(galleryData);
+        .update({ sort_order: i })
+        .eq('id', existingImages[i].id);
     }
   };
 
@@ -629,7 +658,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
 
     try {
       // 필수 필드 검증
-      if (!form.title || !form.description || !form.category) {
+      if (!form.title || !form.category) {
         throw new Error("필수 항목을 모두 입력해주세요");
       }
 
@@ -657,7 +686,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
       }
 
       // 갤러리 이미지 업로드 및 정리
-      const galleryResult = await uploadGalleryImages();
+      const galleryResult = await uploadGalleryImages(projectId);
       
       // 프로젝트 데이터 업데이트
       const result = await updateProject(projectId, {
@@ -1027,7 +1056,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
               {/* 비디오 썸네일 업로드 영역 */}
               <div>
                 <label className="block text-[#8B8EA0] font-medium mb-2">
-                  비디오 썸네일
+                  {form.video_url ? '비디오 썸네일' : '대체 이미지'}
                 </label>
                 <div
                   ref={thumbnailDropAreaRef}
@@ -1045,7 +1074,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                     <div className="relative">
                       <img
                         src={thumbnailPreview}
-                        alt="썸네일 미리보기"
+                        alt={form.video_url ? "썸네일 미리보기" : "대체 이미지 미리보기"}
                         className="max-h-64 mx-auto rounded-standard object-contain"
                       />
                       <button
@@ -1067,10 +1096,12 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                     >
                       <PhotoIcon className="h-12 w-12 mx-auto text-white/50" />
                       <div className="text-white/80">
-                        <span className="text-gold">썸네일 이미지 선택</span>하거나 드래그하여 업로드하세요
+                        <span className="text-gold">{form.video_url ? '썸네일 이미지 선택' : '대체 이미지 선택'}</span>하거나 드래그하여 업로드하세요
                       </div>
                       <div className="text-white/60 text-sm">
-                        권장 크기: 1280x720px (16:9), 최대 5MB
+                        {form.video_url 
+                          ? '권장 크기: 1280x720px (16:9), 최대 5MB'
+                          : '권장 크기: 1920x1080px (16:9), 최대 5MB'}
                       </div>
                     </div>
                   )}
@@ -1084,10 +1115,10 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                 </div>
               </div>
 
-              {/* 설명 입력 영역 */}
+              {/* 설명 및 내용 */}
               <div>
                 <label className="block text-[#8B8EA0] font-medium mb-2">
-                  설명 <span className="text-[#ff9494]">*</span>
+                  설명
                 </label>
                 <textarea
                   name="description"
@@ -1095,8 +1126,8 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                   onChange={handleChange}
                   rows={3}
                   className="w-full bg-[#232b3d] rounded-standard border border-[#353f54] px-4 py-2.5 text-white placeholder-[#8B8EA0] focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all resize-none"
-                  placeholder="프로젝트에 대한 간략한 설명을 입력하세요"
-                ></textarea>
+                  placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
+                />
               </div>
 
               {/* 콘텐츠 입력 영역 */}
@@ -1201,26 +1232,19 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                   프로젝트 갤러리 이미지
                   <span className="text-xs text-gray-400 ml-2">(최대 10장, 16:9 권장, 장당 5MB 이하)</span>
                 </label>
+                <DndProvider backend={HTML5Backend}>
                 <div className="flex flex-wrap gap-4">
                   {/* 갤러리 이미지 미리보기 */}
                   {galleryImages.map((image, index) => (
-                    <div key={index} className="relative w-40 h-24 group">
-                      <Image
-                        src={image.preview}
-                        alt={`갤러리 이미지 ${index + 1}`}
-                        fill
-                        className="object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGalleryImages(prev => prev.filter((_, i) => i !== index));
+                      <DraggableGalleryImage
+                        key={image.id || index}
+                        image={image}
+                        index={index}
+                        moveImage={moveGalleryImage}
+                        onRemove={() => {
+                          handleRemoveGalleryImage(index);
                         }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
+                      />
                   ))}
 
                   {/* 이미지 추가 버튼 */}
@@ -1234,6 +1258,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                     </button>
                   )}
                 </div>
+                </DndProvider>
 
                 {/* 파일 입력 */}
                 <input
@@ -1256,42 +1281,44 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
           </form>
           
           {/* 제출 버튼 - 폼 외부에 배치 */}
-          <div className="flex justify-between items-center p-6 pt-3 bg-[#1A2234] border-t border-[#353f54]">
+          <div className="flex justify-between items-center p-6 bg-[#1A2234] border-t border-[#353f54] sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
             {/* 공개설정 버튼 */}
-            <div className="flex items-center space-x-4">
-              <span className="text-[#8B8EA0] font-medium">공개 설정:</span>
+            <div className="flex items-center gap-3">
+              <span className="text-white font-medium">공개 설정</span>
+              <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => handleVisibilityChange('public')}
-                className={`px-4 py-2 rounded-standard flex items-center space-x-2 transition-colors ${
+                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all ${
                   form.visibility === 'public'
-                    ? 'bg-gold/20 text-gold border border-gold/50'
-                    : 'bg-[#232b3d] text-[#8B8EA0] border border-[#353f54] hover:border-gold/30'
+                      ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                      : 'bg-[#232b3d] text-gray-300 border border-[#353f54] hover:border-emerald-500/30 hover:text-emerald-400'
                 }`}
               >
                 <EyeIcon className="h-5 w-5" />
-                <span>공개</span>
+                  <span className="font-medium">공개</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleVisibilityChange('private')}
-                className={`px-4 py-2 rounded-standard flex items-center space-x-2 transition-colors ${
+                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all ${
                   form.visibility === 'private'
-                    ? 'bg-gold/20 text-gold border border-gold/50'
-                    : 'bg-[#232b3d] text-[#8B8EA0] border border-[#353f54] hover:border-gold/30'
+                      ? 'bg-gray-500/20 text-gray-300 border-2 border-gray-500/50 shadow-[0_0_10px_rgba(107,114,128,0.2)]'
+                      : 'bg-[#232b3d] text-gray-300 border border-[#353f54] hover:border-gray-500/30'
                 }`}
               >
                 <EyeSlashIcon className="h-5 w-5" />
-                <span>비공개</span>
+                  <span className="font-medium">비공개</span>
               </button>
+              </div>
             </div>
 
             {/* 취소/저장 버튼 */}
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 bg-[#232b3d] text-[#8B8EA0] rounded-standard border border-[#353f54] hover:border-gold/30 transition-colors"
+                className="min-w-[120px] px-6 py-3 bg-[#232b3d] text-gray-300 rounded-lg border border-[#353f54] hover:bg-[#2a344a] hover:border-gray-500/30 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={saving}
               >
                 취소
@@ -1305,12 +1332,12 @@ export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, p
                     if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                   }
                 }}
-                className="px-5 py-2.5 bg-[#232b3d] text-gold rounded-standard font-medium border-2 border-gold hover:bg-gold/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-w-[120px] px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(37,99,235,0.2)] hover:shadow-[0_0_15px_rgba(37,99,235,0.3)]"
                 disabled={saving}
               >
                 {saving ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gold" viewBox="0 0 24 24">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
                       <circle
                         className="opacity-25"
                         cx="12"

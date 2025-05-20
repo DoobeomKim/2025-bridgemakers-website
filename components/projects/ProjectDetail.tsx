@@ -97,7 +97,9 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
         </div>
 
         {/* 비디오 섹션 */}
-        {project.video_url && !isVideoPlaying && (
+        {project.video_url ? (
+          <>
+            {!isVideoPlaying && (
           <div 
             className="relative aspect-video w-full mb-8 rounded-lg overflow-hidden group cursor-pointer"
             onClick={() => setIsVideoPlaying(true)}
@@ -119,7 +121,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
           </div>
         )}
         
-        {project.video_url && isVideoPlaying && (
+            {isVideoPlaying && (
           <div className="relative aspect-video w-full mb-8 rounded-lg overflow-hidden bg-black">
             <iframe
               src={getYouTubeEmbedUrl(project.video_url)}
@@ -129,61 +131,82 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
               className="absolute inset-0 w-full h-full"
             />
           </div>
+            )}
+          </>
+        ) : (
+          project.video_thumbnail_url && (
+            <div className="relative aspect-video w-full mb-8 rounded-lg overflow-hidden">
+              <Image
+                src={project.video_thumbnail_url}
+                alt={project.title}
+                fill
+                className="object-cover"
+                sizes="100vw"
+                quality={95}
+                priority
+                unoptimized={true}
+              />
+            </div>
+          )
         )}
 
-        {/* 프로젝트 메타 정보 */}
-        <div className="mt-8">
-          {/* 메타 정보 한 줄 정렬 */}
-          <div className="flex flex-wrap md:flex-nowrap items-center justify-between max-w-3xl text-sm">
-            <div className="w-full md:w-auto px-4 py-2">
-              <h3 className="text-[#cba967] text-xs mb-1">날짜</h3>
-              <p className="text-white">{formattedDate}</p>
-            </div>
-            <div className="w-full md:w-auto px-4 py-2">
-              <h3 className="text-[#cba967] text-xs mb-1">카테고리</h3>
-              <p className="text-white">{project.category}</p>
-            </div>
-            <div className="w-full md:w-auto px-4 py-2">
-              <h3 className="text-[#cba967] text-xs mb-1">산업</h3>
-              <p className="text-white">{project.industry}</p>
-            </div>
-            <div className="w-full md:w-auto px-4 py-2">
-              <h3 className="text-[#cba967] text-xs mb-1">국가</h3>
-              <p className="text-white">{project.country}</p>
+        {/* 메타 정보 2x2 그리드 */}
+        <div className="grid grid-cols-2 md:flex md:flex-nowrap items-start md:items-center justify-between max-w-3xl text-sm gap-2 md:gap-0">
+          <div className="w-full md:w-auto px-4 py-2">
+            <h3 className="text-[#cba967] text-xs mb-1">날짜</h3>
+            <p className="text-white">{formattedDate}</p>
+          </div>
+          <div className="w-full md:w-auto px-4 py-2">
+            <h3 className="text-[#cba967] text-xs mb-1">카테고리</h3>
+            <p className="text-white">{project.category}</p>
+          </div>
+          <div className="w-full md:w-auto px-4 py-2">
+            <h3 className="text-[#cba967] text-xs mb-1">산업</h3>
+            <p className="text-white">{project.industry}</p>
+          </div>
+          <div className="w-full md:w-auto px-4 py-2">
+            <h3 className="text-[#cba967] text-xs mb-1">국가</h3>
+            <p className="text-white">{project.country}</p>
+          </div>
+        </div>
+
+        {/* 프로젝트 설명 */}
+        <div className="mt-6 px-4">
+          <p className="text-[#C7C7CC] text-base leading-relaxed">{project.description}</p>
+        </div>
+
+        {/* 태그 */}
+        {tags.length > 0 && (
+          <div className="mt-6">
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-block bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-full px-4 py-1 text-sm"
+                >
+                  #{tag.name}
+                </span>
+              ))}
             </div>
           </div>
-
-          {/* 태그 */}
-          {tags.length > 0 && (
-            <div className="mt-6">
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="inline-block bg-[rgba(203,169,103,0.1)] text-[#cba967] rounded-full px-4 py-1 text-sm"
-                  >
-                    #{tag.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* 갤러리 이미지 */}
         {images.length > 0 && (
           <div className="mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {images.map((image) => (
-                <div key={image.id} className="relative aspect-video rounded-xl overflow-hidden group">
+                <div key={image.id} className="relative aspect-video rounded-xl overflow-hidden">
                   <Image
                     src={image.image_url}
                     alt={`${project.title} 이미지`}
                     fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 50vw"
+                    quality={95}
+                    priority={image.sort_order < 2}
+                    unoptimized={true}
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
               ))}
             </div>

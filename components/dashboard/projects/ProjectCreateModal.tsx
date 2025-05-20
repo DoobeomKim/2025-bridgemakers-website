@@ -3,12 +3,16 @@
 import { useState, useRef, MouseEvent, ChangeEvent, DragEvent, useEffect } from 'react';
 import { XMarkIcon, PhotoIcon, EyeIcon, EyeSlashIcon, ChevronUpDownIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { createProject, getAllTags, createTag, linkTagsToProject } from '@/lib/projects';
-import { uploadImageToStorage } from '@/lib/imageUtils';
+import { uploadImageToStorage, resizeImage } from '@/lib/imageUtils';
 import { Locale } from '@/lib/i18n';
 import { Combobox } from '@headlessui/react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { ProjectTag } from '@/lib/database.types';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import DraggableGalleryImage from './DraggableGalleryImage';
+import GalleryDropZone from './GalleryDropZone';
 
 interface ProjectCreateModalProps {
   isOpen: boolean;
@@ -72,12 +76,10 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
     description: "",
     content: "",
     category: "",
-    categoryName: "",
     client: "",
     date: new Date().toISOString().split('T')[0],
     country: "",
     industry: "",
-    industryName: "",
     image_url: "",
     video_url: "",
     video_thumbnail_url: "",
@@ -333,19 +335,36 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
     const files = Array.from(e.target.files || []);
     const remainingSlots = 10 - galleryImages.length;
     
-    // 파일 크기 및 개수 제한 확인
+    // 파일 크기, 포맷, 비율 검증
     const validFiles = files.slice(0, remainingSlots).filter(file => {
+      // 파일 크기 검증 (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError(`${file.name}의 크기가 5MB를 초과합니다.`);
         return false;
       }
+
+      // 파일 포맷 검증
+      const validFormats = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validFormats.includes(file.type)) {
+        setError(`${file.name}은(는) 지원하지 않는 파일 형식입니다. (JPEG, PNG, WebP만 가능)`);
+        return false;
+      }
+
       return true;
     });
 
-    // 이미지 미리보기 생성
+    // 이미지 미리보기 생성 및 비율 검증
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          // 이미지 비율 검증 (16:9 = 1.77778)
+          const aspectRatio = img.width / img.height;
+          if (Math.abs(aspectRatio - 16/9) > 0.1) { // 10% 오차 허용
+            setError(`${file.name}의 비율이 16:9와 크게 다릅니다. 이미지가 왜곡될 수 있습니다.`);
+          }
+          
         setGalleryImages(prev => [
           ...prev,
           {
@@ -353,6 +372,8 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
             preview: reader.result as string
           }
         ]);
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     });
@@ -371,7 +392,11 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
       if (!image.file) continue;
 
       try {
-        const url = await uploadImageToStorage(image.file);
+        // 이미지 리사이징 및 최적화
+        const { blob } = await resizeImage(image.file);
+        const optimizedFile = new File([blob], image.file.name, { type: image.file.type });
+        
+        const url = await uploadImageToStorage(optimizedFile);
         galleryUrls.push(url);
       } catch (error: any) {
         throw new Error(`갤러리 이미지 ${i + 1} 업로드 실패: ${error.message}`);
@@ -401,7 +426,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
 
     try {
       // 필수 필드 검증
-      if (!form.title || !form.description || !form.category) {
+      if (!form.title || !form.category) {
         throw new Error("필수 항목을 모두 입력해주세요");
       }
 
@@ -461,8 +486,8 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
       await uploadGalleryImages(result.data.id);
 
       // 태그 연결
-      if (form.tags.length > 0) {
-        await linkTagsToProject(result.data.id, form.tags);
+      if (selectedTags.length > 0) {
+        await linkTagsToProject(result.data.id, selectedTags.map(tag => tag.id));
       }
 
       onSuccess();
@@ -481,6 +506,22 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       onClose();
     }
+  };
+
+  // 카테고리 선택 핸들러
+  const handleCategorySelect = (value: string) => {
+    setForm(prev => ({
+      ...prev,
+      category: value
+    }));
+  };
+
+  // 산업 선택 핸들러
+  const handleIndustrySelect = (value: string) => {
+    setForm(prev => ({
+      ...prev,
+      industry: value
+    }));
   };
 
   return (
@@ -597,71 +638,40 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                     카테고리 <span className="text-[#ff9494]">*</span>
                   </label>
                   <Combobox
+                    as="div"
                     value={form.category}
-                    onChange={(value) => {
-                      // 기존 카테고리에서 찾기
-                      const selectedCategory = defaultCategories.find(cat => cat.id === value);
-                      setForm({
-                        ...form,
-                        category: value,
-                        categoryName: selectedCategory ? selectedCategory.name : value
-                      });
-                    }}
+                    onChange={handleCategorySelect}
+                    className="relative"
                   >
                     <div className="relative">
-                      <div className="relative w-full">
-                        <Combobox.Input
-                          className="w-full bg-[#232b3d] rounded-standard border border-[#353f54] px-4 py-2.5 text-white placeholder-[#8B8EA0] focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all pr-10"
-                          onChange={(event) => {
-                            setcategoryQuery(event.target.value);
-                            // 직접 입력값도 category로 설정
-                            setForm({
-                              ...form,
-                              category: event.target.value,
-                              categoryName: event.target.value
-                            });
-                          }}
-                          displayValue={(value: string) => {
-                            const selectedCategory = defaultCategories.find(cat => cat.id === value);
-                            return selectedCategory ? selectedCategory.name : value;
-                          }}
-                          placeholder="카테고리 선택 또는 입력"
-                        />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center px-2">
-                          <ChevronUpDownIcon
-                            className="h-5 w-5 text-[#8B8EA0]"
-                            aria-hidden="true"
-                          />
-                        </Combobox.Button>
-                      </div>
-                      <Combobox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-standard bg-[#232b3d] border border-[#353f54] py-1 shadow-lg z-10">
-                        {filteredCategories.map((category) => (
-                          <Combobox.Option
-                            key={category.id}
-                            value={category.id}
-                            className={({ active }) =>
-                              `relative cursor-pointer select-none py-2 pl-4 pr-4 ${
-                                active ? 'bg-gold/10 text-white' : 'text-[#8B8EA0]'
-                              }`
-                            }
-                          >
-                            {category.name}
-                          </Combobox.Option>
-                        ))}
-                        {categoryQuery && !filteredCategories.some(cat => cat.name.toLowerCase() === categoryQuery.toLowerCase()) && (
-                          <Combobox.Option
-                            value={categoryQuery}
-                            className={({ active }) =>
-                              `relative cursor-pointer select-none py-2 pl-4 pr-4 ${
-                                active ? 'bg-gold/10 text-white' : 'text-[#8B8EA0]'
-                              }`
-                            }
-                          >
-                            새 카테고리 추가: {categoryQuery}
-                          </Combobox.Option>
-                        )}
-                      </Combobox.Options>
+                      <Combobox.Input
+                        className="w-full bg-[#232b3d] rounded-standard border border-[#353f54] px-4 py-2.5 text-white placeholder-[#8B8EA0] focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all"
+                        placeholder="카테고리를 선택하거나 입력하세요"
+                        onChange={(event) => {
+                          setcategoryQuery(event.target.value);
+                          setForm(prev => ({ ...prev, category: event.target.value }));
+                        }}
+                        displayValue={(value: string) => value}
+                      />
+                      <Combobox.Button className="absolute inset-y-0 right-0 flex items-center px-2 text-[#8B8EA0]">
+                        <ChevronUpDownIcon className="h-5 w-5" aria-hidden="true" />
+                      </Combobox.Button>
                     </div>
+                    <Combobox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-[#232b3d] py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      {filteredCategories.map((category) => (
+                        <Combobox.Option
+                          key={category.id}
+                          value={category.name}
+                          className={({ active }) =>
+                            `relative cursor-pointer select-none py-2 pl-4 pr-4 ${
+                              active ? 'bg-[#353f54] text-white' : 'text-[#8B8EA0]'
+                            }`
+                          }
+                        >
+                          {category.name}
+                        </Combobox.Option>
+                      ))}
+                    </Combobox.Options>
                   </Combobox>
                 </div>
 
@@ -697,71 +707,40 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                     산업
                   </label>
                   <Combobox
+                    as="div"
                     value={form.industry}
-                    onChange={(value: string) => {
-                      // 기존 산업에서 찾기
-                      const selectedIndustry = defaultIndustries.find(ind => ind.id === value);
-                      setForm({
-                        ...form,
-                        industry: value,
-                        industryName: selectedIndustry ? selectedIndustry.name : value
-                      });
-                    }}
+                    onChange={handleIndustrySelect}
+                    className="relative"
                   >
                     <div className="relative">
-                      <div className="relative w-full">
-                        <Combobox.Input
-                          className="w-full bg-[#232b3d] rounded-standard border border-[#353f54] px-4 py-2.5 text-white placeholder-[#8B8EA0] focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all pr-10"
-                          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                            setIndustryQuery(event.target.value);
-                            // 직접 입력값도 industry로 설정
-                            setForm({
-                              ...form,
-                              industry: event.target.value,
-                              industryName: event.target.value
-                            });
-                          }}
-                          displayValue={(value: string) => {
-                            const selectedIndustry = defaultIndustries.find(ind => ind.id === value);
-                            return selectedIndustry ? selectedIndustry.name : value;
-                          }}
-                          placeholder="산업 선택 또는 입력"
-                        />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center px-2">
-                          <ChevronUpDownIcon
-                            className="h-5 w-5 text-[#8B8EA0]"
-                            aria-hidden="true"
-                          />
-                        </Combobox.Button>
-                      </div>
-                      <Combobox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-standard bg-[#232b3d] border border-[#353f54] py-1 shadow-lg z-10">
-                        {filteredIndustries.map((industry) => (
-                          <Combobox.Option
-                            key={industry.id}
-                            value={industry.id}
-                            className={({ active }: { active: boolean }) =>
-                              `relative cursor-pointer select-none py-2 pl-4 pr-4 ${
-                                active ? 'bg-gold/10 text-white' : 'text-[#8B8EA0]'
-                              }`
-                            }
-                          >
-                            {industry.name}
-                          </Combobox.Option>
-                        ))}
-                        {industryQuery && !filteredIndustries.some(ind => ind.name.toLowerCase() === industryQuery.toLowerCase()) && (
-                          <Combobox.Option
-                            value={industryQuery}
-                            className={({ active }: { active: boolean }) =>
-                              `relative cursor-pointer select-none py-2 pl-4 pr-4 ${
-                                active ? 'bg-gold/10 text-white' : 'text-[#8B8EA0]'
-                              }`
-                            }
-                          >
-                            새 산업 추가: {industryQuery}
-                          </Combobox.Option>
-                        )}
-                      </Combobox.Options>
+                      <Combobox.Input
+                        className="w-full bg-[#232b3d] rounded-standard border border-[#353f54] px-4 py-2.5 text-white placeholder-[#8B8EA0] focus:outline-none focus:ring-2 focus:ring-gold/50 transition-all"
+                        placeholder="산업을 선택하거나 입력하세요"
+                        onChange={(event) => {
+                          setIndustryQuery(event.target.value);
+                          setForm(prev => ({ ...prev, industry: event.target.value }));
+                        }}
+                        displayValue={(value: string) => value}
+                      />
+                      <Combobox.Button className="absolute inset-y-0 right-0 flex items-center px-2 text-[#8B8EA0]">
+                        <ChevronUpDownIcon className="h-5 w-5" aria-hidden="true" />
+                      </Combobox.Button>
                     </div>
+                    <Combobox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-[#232b3d] py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      {filteredIndustries.map((industry) => (
+                        <Combobox.Option
+                          key={industry.id}
+                          value={industry.name}
+                          className={({ active }) =>
+                            `relative cursor-pointer select-none py-2 pl-4 pr-4 ${
+                              active ? 'bg-[#353f54] text-white' : 'text-[#8B8EA0]'
+                            }`
+                          }
+                        >
+                          {industry.name}
+                        </Combobox.Option>
+                      ))}
+                    </Combobox.Options>
                   </Combobox>
                 </div>
               </div>
@@ -769,7 +748,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
               {/* 설명 및 내용 */}
               <div>
                 <label className="block text-[#8B8EA0] font-medium mb-2">
-                  설명 <span className="text-[#ff9494]">*</span>
+                  설명
                 </label>
                 <textarea
                   name="description"
@@ -813,7 +792,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
               {/* 비디오 썸네일 업로드 영역 */}
               <div>
                 <label className="block text-[#8B8EA0] font-medium mb-2">
-                  비디오 썸네일
+                  {form.video_url ? '비디오 썸네일' : '대체 이미지'}
                 </label>
                 <div
                   ref={thumbnailDropAreaRef}
@@ -831,7 +810,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                     <div className="relative">
                       <img
                         src={thumbnailPreview}
-                        alt="썸네일 미리보기"
+                        alt={form.video_url ? "썸네일 미리보기" : "대체 이미지 미리보기"}
                         className="max-h-64 mx-auto rounded-standard object-contain"
                       />
                       <button
@@ -853,10 +832,12 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                     >
                       <PhotoIcon className="h-12 w-12 mx-auto text-white/50" />
                       <div className="text-white/80">
-                        <span className="text-gold">썸네일 이미지 선택</span>하거나 드래그하여 업로드하세요
+                        <span className="text-gold">{form.video_url ? '썸네일 이미지 선택' : '대체 이미지 선택'}</span>하거나 드래그하여 업로드하세요
                       </div>
                       <div className="text-white/60 text-sm">
-                        권장 크기: 1280x720px (16:9), 최대 5MB
+                        {form.video_url 
+                          ? '권장 크기: 1280x720px (16:9), 최대 5MB'
+                          : '권장 크기: 1920x1080px (16:9), 최대 5MB'}
                       </div>
                     </div>
                   )}
@@ -876,48 +857,10 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                   프로젝트 갤러리 이미지
                   <span className="text-xs text-gray-400 ml-2">(최대 10장, 16:9 권장, 장당 5MB 이하)</span>
                 </label>
-                <div className="flex flex-wrap gap-4">
-                  {/* 갤러리 이미지 미리보기 */}
-                  {galleryImages.map((image, index) => (
-                    <div key={index} className="relative w-40 h-24 group">
-                      <Image
-                        src={image.preview}
-                        alt={`갤러리 이미지 ${index + 1}`}
-                        fill
-                        className="object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGalleryImages(prev => prev.filter((_, i) => i !== index));
-                        }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* 이미지 추가 버튼 */}
-                  {galleryImages.length < 10 && (
-                    <button
-                      type="button"
-                      onClick={() => galleryInputRef.current?.click()}
-                      className="w-40 h-24 flex items-center justify-center border-2 border-dashed border-gray-500 rounded-lg hover:border-gray-400 transition-colors"
-                    >
-                      <PhotoIcon className="w-8 h-8 text-gray-500" />
-                    </button>
-                  )}
-                </div>
-
-                {/* 파일 입력 */}
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleGalleryImageSelect}
+                <GalleryDropZone
+                  images={galleryImages}
+                  onImagesChange={setGalleryImages}
+                  onError={setError}
                 />
               </div>
 
@@ -1013,42 +956,44 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
           </form>
           
           {/* 제출 버튼 - 폼 외부에 배치 */}
-          <div className="flex justify-between items-center p-6 pt-3 bg-[#1A2234] border-t border-[#353f54]">
+          <div className="flex justify-between items-center p-6 bg-[#1A2234] border-t border-[#353f54] sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
             {/* 공개설정 버튼 */}
-            <div className="flex items-center space-x-4">
-              <span className="text-[#8B8EA0] font-medium">공개 설정:</span>
+            <div className="flex items-center gap-3">
+              <span className="text-white font-medium">공개 설정</span>
+              <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => handleVisibilityChange('public')}
-                className={`px-4 py-2 rounded-standard flex items-center space-x-2 transition-colors ${
+                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all ${
                   form.visibility === 'public'
-                    ? 'bg-gold/20 text-gold border border-gold/50'
-                    : 'bg-[#232b3d] text-[#8B8EA0] border border-[#353f54] hover:border-gold/30'
+                      ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                      : 'bg-[#232b3d] text-gray-300 border border-[#353f54] hover:border-emerald-500/30 hover:text-emerald-400'
                 }`}
               >
                 <EyeIcon className="h-5 w-5" />
-                <span>공개</span>
+                  <span className="font-medium">공개</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleVisibilityChange('private')}
-                className={`px-4 py-2 rounded-standard flex items-center space-x-2 transition-colors ${
+                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all ${
                   form.visibility === 'private'
-                    ? 'bg-gold/20 text-gold border border-gold/50'
-                    : 'bg-[#232b3d] text-[#8B8EA0] border border-[#353f54] hover:border-gold/30'
+                      ? 'bg-gray-500/20 text-gray-300 border-2 border-gray-500/50 shadow-[0_0_10px_rgba(107,114,128,0.2)]'
+                      : 'bg-[#232b3d] text-gray-300 border border-[#353f54] hover:border-gray-500/30'
                 }`}
               >
                 <EyeSlashIcon className="h-5 w-5" />
-                <span>비공개</span>
+                  <span className="font-medium">비공개</span>
               </button>
+              </div>
             </div>
 
             {/* 취소/저장 버튼 */}
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 bg-[#232b3d] text-[#8B8EA0] rounded-standard border border-[#353f54] hover:border-gold/30 transition-colors"
+                className="min-w-[120px] px-6 py-3 bg-[#232b3d] text-gray-300 rounded-lg border border-[#353f54] hover:bg-[#2a344a] hover:border-gray-500/30 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={saving}
               >
                 취소
@@ -1062,12 +1007,12 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                     if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                   }
                 }}
-                className="px-5 py-2.5 bg-[#232b3d] text-gold rounded-standard font-medium border-2 border-gold hover:bg-gold/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-w-[120px] px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(37,99,235,0.2)] hover:shadow-[0_0_15px_rgba(37,99,235,0.3)]"
                 disabled={saving}
               >
                 {saving ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gold" viewBox="0 0 24 24">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
                       <circle
                         className="opacity-25"
                         cx="12"

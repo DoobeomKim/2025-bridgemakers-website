@@ -6,6 +6,9 @@ import { supabase } from "@/lib/supabaseClient";
 import ClientPage from "./page.client";
 import { use } from "react";
 
+// 5분마다 재검증
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "프로젝트 | Bridge Makers",
   description: "Bridge Makers의 다양한 웹사이트, 영상 제작 프로젝트를 소개합니다.",

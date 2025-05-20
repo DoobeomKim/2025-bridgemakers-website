@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { slugify as transliterate } from "transliterate"
+import { slugify } from "transliterate"
+import { supabase } from "../lib/supabase"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -25,8 +26,54 @@ export interface ProjectData {
   tags?: string[];
 }
 
-// 슬러그 생성 유틸리티 함수
-export function generateSlug(projectData: ProjectData): string {
+/**
+ * 한글 텍스트를 영어로 번역하는 함수
+ */
+async function translateToEnglish(text: string): Promise<string> {
+  if (!text) return '';
+  
+  // 영어나 숫자만 있는 경우 번역하지 않음
+  if (/^[a-zA-Z0-9\s-]+$/.test(text)) {
+    return text;
+  }
+
+  try {
+    const clientId = process.env.NEXT_PUBLIC_PAPAGO_CLIENT_ID;
+    const clientSecret = process.env.NEXT_PUBLIC_PAPAGO_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      console.warn('Papago API 키가 설정되지 않았습니다.');
+      return text;
+    }
+
+    const response = await fetch('https://openapi.naver.com/v1/papago/n2mt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+      },
+      body: JSON.stringify({
+        source: 'ko',
+        target: 'en',
+        text: text,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('번역 요청 실패');
+    }
+
+    const data = await response.json();
+    return data.message?.result?.translatedText || text;
+  } catch (error) {
+    console.error('번역 중 오류 발생:', error);
+    return text;
+  }
+}
+
+// 슬러그 생성 유틸리티 함수 수정
+export async function generateSlug(projectData: ProjectData): Promise<string> {
   try {
     const parts: string[] = [];
     
@@ -38,37 +85,68 @@ export function generateSlug(projectData: ProjectData): string {
       parts.push(new Date().getFullYear().toString());
     }
 
-    // 2. 클라이언트명 처리
+    // 2. 클라이언트명 처리 (번역 후)
     if (projectData.client) {
-      const clientSlug = transliterate(projectData.client.toLowerCase())
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .trim();
+      const translatedClient = await translateToEnglish(projectData.client);
+      const clientSlug = slugify(translatedClient.toLowerCase());
       if (clientSlug) parts.push(clientSlug);
     }
 
-    // 3. 카테고리 처리
+    // 3. 카테고리 처리 (번역 후)
     if (projectData.category) {
-      const categorySlug = transliterate(projectData.category.toLowerCase())
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .trim();
+      const translatedCategory = await translateToEnglish(projectData.category);
+      const categorySlug = slugify(translatedCategory.toLowerCase());
       if (categorySlug) parts.push(categorySlug);
     }
 
-    // 최종 슬러그 생성
-    let slug = parts.join('-');
+    // 4. 제목 처리 (번역 후)
+    if (projectData.title) {
+      const translatedTitle = await translateToEnglish(projectData.title);
+      const titleSlug = slugify(translatedTitle.toLowerCase());
+      if (titleSlug) parts.push(titleSlug);
+    }
+
+    // 기본 슬러그 생성
+    let baseSlug = parts.join('-');
     
     // 슬러그가 비어있거나 유효하지 않은 경우 대체 슬러그 생성
-    if (!slug || slug.length < 3) {
+    if (!baseSlug || baseSlug.length < 3) {
       const timestamp = new Date().getTime();
       return `project-${timestamp}`;
     }
 
     // 연속된 하이픈 제거
-    slug = slug.replace(/-+/g, '-');
+    baseSlug = baseSlug.replace(/-+/g, '-');
     
-    return slug;
+    // 중복 확인 및 처리
+    const { data: existingProject } = await supabase
+      .from('projects')
+      .select('slug')
+      .eq('slug', baseSlug)
+      .single();
+
+    if (!existingProject) {
+      return baseSlug;
+    }
+
+    // 중복이 있는 경우 숫자를 붙여서 유니크한 슬러그 생성
+    let counter = 1;
+    let newSlug = `${baseSlug}-${counter}`;
+
+    while (true) {
+      const { data: duplicateProject } = await supabase
+        .from('projects')
+        .select('slug')
+        .eq('slug', newSlug)
+        .single();
+
+      if (!duplicateProject) {
+        return newSlug;
+      }
+
+      counter++;
+      newSlug = `${baseSlug}-${counter}`;
+    }
   } catch (error) {
     console.error('슬러그 생성 중 오류 발생:', error);
     const timestamp = new Date().getTime();

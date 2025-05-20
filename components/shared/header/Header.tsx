@@ -85,8 +85,8 @@ export default function Header({
             </Link>
           </div>
 
-          {/* 데스크탑 네비게이션 - 900px 이상에서만 표시 */}
-          <nav className="hidden lg:ml-16 lg:flex lg:space-x-8">
+          {/* 데스크탑 네비게이션 - 768px 이상에서 표시 */}
+          <nav className="hidden md:ml-16 md:flex md:space-x-8">
             {publicNavItems.map((item) => (
               <Link
                 key={item.href}
@@ -98,8 +98,8 @@ export default function Header({
             ))}
           </nav>
 
-          {/* 데스크탑 우측 메뉴 (언어 선택, 로그인 등) - 900px 이상에서만 표시 */}
-          <div className="hidden lg:flex lg:items-center lg:space-x-4">
+          {/* 데스크탑 우측 메뉴 (언어 선택, 로그인 등) - 768px 이상에서 표시 */}
+          <div className="hidden md:flex md:items-center md:space-x-4">
             <LanguageSwitcher locale={locale} />
             {isUserLoading ? (
               <div className="w-8 h-8 rounded-full bg-gray-600 animate-pulse"></div>
@@ -108,8 +108,8 @@ export default function Header({
             )}
           </div>
 
-          {/* 모바일과 태블릿 메뉴 토글 버튼 - 900px 미만에서 표시 */}
-          <div className="flex items-center space-x-4 lg:hidden">
+          {/* 모바일 메뉴 토글 버튼 - 768px 미만에서 표시 */}
+          <div className="flex items-center space-x-4 md:hidden">
             <LanguageSwitcher locale={locale} />
             <button
               type="button"
@@ -156,9 +156,9 @@ export default function Header({
         </div>
       </div>
 
-      {/* 모바일 및 태블릿 메뉴 - 900px 미만에서 표시 */}
+      {/* 모바일 메뉴 - 768px 미만에서 표시 */}
       <div
-        className={`${mobileMenuOpen ? 'block' : 'hidden'} lg:hidden bg-black`}
+        className={`${mobileMenuOpen ? 'block' : 'hidden'} md:hidden bg-black`}
         id="mobile-menu"
       >
         <div className="px-4 pt-2 pb-4 space-y-2 border-t border-[#222]">

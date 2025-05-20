@@ -147,14 +147,17 @@ export async function getProjectById(id: string): Promise<ProjectWithDetails | n
 
 export async function createProject(projectData: any) {
   try {
+    // tags 필드를 분리
+    const { tags, ...projectFields } = projectData;
+
     // slug 생성 (한글 제목을 로마자로 변환 후 처리)
-    if (!projectData.slug) {
-      projectData.slug = generateSlug(projectData);
+    if (!projectFields.slug) {
+      projectFields.slug = generateSlug(projectFields);
     }
     
     const { data, error } = await supabase
       .from("projects")
-      .insert(projectData)
+      .insert(projectFields)
       .select()
       .single();
       
