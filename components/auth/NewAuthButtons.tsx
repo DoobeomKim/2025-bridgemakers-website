@@ -3,32 +3,51 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '@/components/auth/AuthContext';
-import LoginModal from './LoginModal';
+import { useAuth, UserProfile } from '@/components/auth/AuthContext';
+import AuthLoginModal from './AuthLoginModal';
 import ProfileDropdownMenu from './ProfileDropdownMenu';
 import ProfileModal from './ProfileModal';
+import { UserRole } from '@/types/supabase';
 
 interface AuthButtonsProps {
   locale: string;
   isMobile?: boolean;
 }
 
-const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
+const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
   const { user, userProfile, signOut, isLoading } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [initialMode, setInitialMode] = useState<'login' | 'register'>('login');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const handleLoginClick = () => {
-    setInitialMode('login');
-    setIsLoginModalOpen(true);
-  };
+  // userProfile을 ProfileDropdownMenu가 기대하는 형식으로 변환
+  const compatibleUserProfile = userProfile ? {
+    id: userProfile.id,
+    email: userProfile.email,
+    first_name: userProfile.first_name,
+    last_name: userProfile.last_name,
+    profile_image_url: userProfile.profile_image_url,
+    user_level: userProfile.user_level,
+    company_name: userProfile.company_name,
+    created_at: userProfile.created_at,
+    updated_at: userProfile.updated_at
+  } : null;
 
-  const handleRegisterClick = () => {
-    setInitialMode('register');
+  // 디버깅용 로그 추가
+  useEffect(() => {
+    if (userProfile) {
+      console.log('🔍 NewAuthButtons: userProfile 데이터', {
+        id: userProfile.id,
+        email: userProfile.email,
+        company_name: userProfile.company_name || '없음',
+        created_at: userProfile.created_at
+      });
+    }
+  }, [userProfile]);
+
+  const handleLoginClick = () => {
     setIsLoginModalOpen(true);
   };
 
@@ -38,7 +57,7 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
       setIsDropdownOpen(false);
       router.refresh();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('로그아웃 오류:', error);
     }
   };
 
@@ -62,7 +81,7 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
     return null;
   }
 
-  if (!userProfile) {
+  if (!user || !userProfile || !compatibleUserProfile) {
     if (isMobile) {
       return (
         <div className="space-y-2">
@@ -72,16 +91,10 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
           >
             로그인
           </button>
-          <button
-            onClick={handleRegisterClick}
-            className="block w-full py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors text-left"
-          >
-            회원가입
-          </button>
-          <LoginModal
+          <AuthLoginModal
             isOpen={isLoginModalOpen}
             onClose={() => setIsLoginModalOpen(false)}
-            initialMode={initialMode}
+            initialMode="login"
             locale={locale}
           />
         </div>
@@ -90,25 +103,18 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
 
     return (
       <>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <button
             onClick={handleLoginClick}
             className="text-sm text-white hover:text-[#cba967] transition-colors"
           >
             로그인
           </button>
-          <span className="text-gray-400">|</span>
-          <button
-            onClick={handleRegisterClick}
-            className="text-sm text-white hover:text-[#cba967] transition-colors"
-          >
-            회원가입
-          </button>
         </div>
-        <LoginModal
+        <AuthLoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
-          initialMode={initialMode}
+          initialMode="login"
           locale={locale}
         />
       </>
@@ -122,11 +128,11 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
           className="flex items-center space-x-2 cursor-pointer group"
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
-          {userProfile?.profile_image_url ? (
+          {compatibleUserProfile?.profile_image_url ? (
             <div className="relative">
               <img 
-                src={userProfile.profile_image_url} 
-                alt={`${userProfile.first_name || ''} ${userProfile.last_name || ''}`} 
+                src={compatibleUserProfile.profile_image_url} 
+                alt={`${compatibleUserProfile.first_name || ''} ${compatibleUserProfile.last_name || ''}`} 
                 className="w-8 h-8 rounded-full object-cover border border-[#cba967] group-hover:border-white transition-colors"
               />
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-black rounded-full flex items-center justify-center border border-[#cba967] group-hover:border-white transition-colors">
@@ -136,7 +142,7 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
           ) : (
             <div className="relative">
               <div className="w-8 h-8 bg-[#cba967] rounded-full flex items-center justify-center text-black font-medium group-hover:bg-[#d4b67a] transition-colors">
-                {userProfile?.first_name?.charAt(0).toUpperCase() || '?'}
+                {compatibleUserProfile?.first_name ? compatibleUserProfile.first_name.charAt(0).toUpperCase() : '?'}
               </div>
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-black rounded-full flex items-center justify-center border border-[#cba967] group-hover:border-white transition-colors">
                 <ChevronDownIcon className="w-3 h-3 text-white" />
@@ -149,7 +155,7 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
         {isDropdownOpen && (
           <div ref={dropdownRef} className="absolute top-10 right-0">
             <ProfileDropdownMenu
-              user={userProfile}
+              user={compatibleUserProfile as UserProfile}
               locale={locale}
               onClose={() => setIsDropdownOpen(false)}
               onLogout={handleLogout}
@@ -162,17 +168,17 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
         <ProfileModal 
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
-          user={userProfile}
+          user={compatibleUserProfile as UserProfile}
         />
       </div>
-      <LoginModal
+      <AuthLoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        initialMode={initialMode}
+        initialMode="login"
         locale={locale}
       />
     </>
   );
 };
 
-export default AuthButtons; 
+export default NewAuthButtons; 

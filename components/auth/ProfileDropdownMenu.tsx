@@ -1,4 +1,7 @@
-import { UserProfile } from "@/lib/supabase";
+"use client";
+
+import { UserProfile } from '@/components/auth/AuthContext';
+import { UserRole } from '@/types/supabase';
 import { HomeIcon, UserIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 interface ProfileDropdownMenuProps {
@@ -28,24 +31,25 @@ const ProfileDropdownMenu = ({
           {user.profile_image_url ? (
             <img 
               src={user.profile_image_url} 
-              alt={`${user.first_name} ${user.last_name}`} 
+              alt={`${user.first_name || ''} ${user.last_name || ''}`} 
               className="w-10 h-10 rounded-full object-cover border border-[#cba967] mt-1"
             />
           ) : (
             <div className="w-10 h-10 bg-[#cba967] rounded-full flex items-center justify-center text-black font-medium mt-1">
-              {user.first_name.charAt(0).toUpperCase()}
+              {(user.first_name || '').charAt(0).toUpperCase()}
             </div>
           )}
           <div>
-            <div className="text-white font-medium">{user.first_name} {user.last_name}</div>
+            <div className="text-white font-medium">{user.first_name || ''} {user.last_name || ''}</div>
             <div className="text-[#C7C7CC] text-xs">{user.email}</div>
-            {user.company_name && (
-              <div className="text-[#C7C7CC] text-xs mt-1">{user.company_name}</div>
-            )}
             <div className="text-[#cba967] text-xs mt-1 flex items-center">
-              {user.user_level === 'admin' ? '관리자' :
-               user.user_level === 'premium' ? '프리미엄 회원' : '기본 회원'}
+              {user.user_level === UserRole.ADMIN ? '관리자' : '기본 회원'}
             </div>
+            {user.company_name && (
+              <div className="text-[#C7C7CC] text-xs mt-1">
+                {user.company_name}
+              </div>
+            )}
           </div>
         </div>
       </div>

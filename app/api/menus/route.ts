@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,7 +9,7 @@ export const revalidate = 0;
 export async function PUT(request: Request) {
   try {
     // 세션 체크
-    const supabase = await createClient();
+    const supabase = createServerClient();
     const { data: { user }, error: sessionError } = await supabase.auth.getUser();
     
     if (sessionError || !user) {

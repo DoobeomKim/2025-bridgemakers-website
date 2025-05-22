@@ -17,11 +17,11 @@ import {
 } from "@heroicons/react/24/outline";
 import clsx from 'clsx';
 import { MenuItem, getAllMenus } from "@/lib/constants/menus";
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { supabase } from '@/lib/supabase/client';
 import LoginModal from '@/components/auth/LoginModal';
-import { useAuth } from "@/app/components/auth/AuthProvider";
-import { UserLevel } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/AuthContext";
+import { UserRole } from "@/types/supabase";
+import { DraggableList } from "@/app/components/DraggableList";
+import { v4 as generateUUID } from 'uuid';
 
 type Tab = {
   id: string;
@@ -48,19 +48,9 @@ const tabs: Tab[] = [
   { id: 'legal', name: '법적 문서', icon: DocumentDuplicateIcon },
 ];
 
-// UUID v4 생성 함수
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
 export default function SiteManagementPage() {
   const router = useRouter();
-  const { userProfile, loading } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const { userProfile, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [organizationName, setOrganizationName] = useState('BRIDGEMAKERS');
   const [organizationSlug, setOrganizationSlug] = useState('bridgemakers');
@@ -100,6 +90,7 @@ export default function SiteManagementPage() {
       }
 
       setIsLanguageSwitcherEnabled(newState);
+      alert('언어 변경 컴포넌트 설정이 저장되었습니다.');
     } catch (error: any) {
       console.error('Error updating language switcher:', error);
       alert(error.message || '언어 변경 컴포넌트 설정 업데이트에 실패했습니다.');
@@ -113,15 +104,14 @@ export default function SiteManagementPage() {
   // 초기 데이터 로드
   useEffect(() => {
     const init = async () => {
-      if (loading) return;
+      if (isLoading) return;
       
-      if (!userProfile || userProfile.user_level !== UserLevel.ADMIN) {
+      if (!userProfile || userProfile.user_level !== UserRole.ADMIN) {
         router.push('/dashboard');
         return;
       }
 
       try {
-        setIsLoading(true);
         // 헤더 메뉴 로드
         const response = await fetch('/api/menus');
         const { data: menus } = await response.json();
@@ -136,13 +126,11 @@ export default function SiteManagementPage() {
       } catch (error) {
         console.error('Error initializing:', error);
         alert('데이터를 불러오는데 실패했습니다.');
-      } finally {
-        setIsLoading(false);
       }
     };
 
     init();
-  }, [loading, userProfile, router]);
+  }, [isLoading, userProfile, router]);
 
   const handleSave = async () => {
     if (!hasChanges) return;
@@ -150,25 +138,25 @@ export default function SiteManagementPage() {
     try {
       setIsSaving(true);
 
-        // 메뉴 순서 인덱스 업데이트
-        const sortedMenus = headerMenus.map((menu, index) => ({
-          ...menu,
-          orderIndex: index + 1
-        }));
+      // 메뉴 순서 인덱스 업데이트
+      const sortedMenus = headerMenus.map((menu, index) => ({
+        ...menu,
+        orderIndex: index + 1
+      }));
 
       // 메뉴 데이터 저장
       const menuResponse = await fetch('/api/menus', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(sortedMenus),
-        });
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sortedMenus),
+      });
 
       if (!menuResponse.ok) {
         const errorData = await menuResponse.json();
-          throw new Error(errorData.error || '메뉴 업데이트에 실패했습니다.');
-        }
+        throw new Error(errorData.error || '메뉴 업데이트에 실패했습니다.');
+      }
 
       const { data: updatedMenus } = await menuResponse.json();
       setHeaderMenus(updatedMenus);
@@ -234,25 +222,7 @@ export default function SiteManagementPage() {
     setEditingMenu(null);
   };
 
-  // 드래그 앤 드롭 핸들러
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    
-    const items = Array.from(headerMenus);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    
-    // 순서 인덱스 업데이트
-    const updatedItems = items.map((item, index) => ({
-      ...item,
-      orderIndex: index + 1
-    }));
-    
-    setHeaderMenus(updatedItems);
-  };
-
-  // 로딩 상태 표시
-  if (loading || isLoading) {
+  if (isLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
@@ -266,8 +236,7 @@ export default function SiteManagementPage() {
     );
   }
 
-  // 권한이 없는 경우
-  if (!userProfile || userProfile.user_level !== UserLevel.ADMIN) {
+  if (!userProfile || userProfile.user_level !== UserRole.ADMIN) {
     return (
       <div className="p-6">
         <div className="text-red-500 text-center">
@@ -277,105 +246,206 @@ export default function SiteManagementPage() {
     );
   }
 
+  const renderMenuItem = (menu: LocalHeaderMenu) => {
+    if (editingMenu?.id === menu.id) {
+      return (
+        <div className="flex items-center gap-4">
+          <input
+            type="text"
+            value={editingMenu.name.ko}
+            onChange={(e) => setEditingMenu({ ...editingMenu, name: { ...editingMenu.name, ko: e.target.value } })}
+            className="flex-1 bg-[#374151] border border-[#4b5563] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
+          />
+          <input
+            type="text"
+            value={editingMenu.name.en}
+            onChange={(e) => setEditingMenu({ ...editingMenu, name: { ...editingMenu.name, en: e.target.value } })}
+            className="flex-1 bg-[#374151] border border-[#4b5563] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
+          />
+          <input
+            type="text"
+            value={editingMenu.path}
+            onChange={(e) => setEditingMenu({ ...editingMenu, path: e.target.value })}
+            className="flex-1 bg-[#374151] border border-[#4b5563] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSaveEdit}
+              className="p-2 text-green-500 hover:text-green-400 transition-colors"
+            >
+              <CheckIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="p-2 text-red-500 hover:text-red-400 transition-colors"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-4">
+        <div className="p-2 text-gray-400">
+          <ArrowsUpDownIcon className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-white">{menu.name.ko} / {menu.name.en}</div>
+          <div className="text-sm text-gray-400">{menu.path}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleToggleHeaderMenu(menu.id)}
+            className={clsx(
+              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:ring-offset-2 focus:ring-offset-[#111827]',
+              menu.isActive ? 'bg-[#cba967]' : 'bg-gray-600'
+            )}
+          >
+            <span
+              className={clsx(
+                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                menu.isActive ? 'translate-x-5' : 'translate-x-0'
+              )}
+            />
+          </button>
+          <button
+            onClick={() => handleEditMenu(menu)}
+            className="p-2 text-blue-500 hover:text-blue-400 transition-colors"
+          >
+            <PencilIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => handleDeleteHeaderMenu(menu.id)}
+            className="p-2 text-red-500 hover:text-red-400 transition-colors"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <>
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-6">사이트 관리</h1>
-        
-        {/* 탭 네비게이션 */}
-        <div className="border-b border-gray-700 mb-6">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {tabs.map((tab) => (
+    <div className="p-6">
+      {/* 탭 네비게이션 */}
+      <div className="border-b border-[#374151] mb-6">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={clsx(
-                  'flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm',
+                  'flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
                   activeTab === tab.id
                     ? 'border-[#cba967] text-[#cba967]'
                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
                 )}
               >
-                <tab.icon className="h-5 w-5" />
+                <Icon className="h-5 w-5" />
                 {tab.name}
               </button>
-            ))}
-          </nav>
-        </div>
+            );
+          })}
+        </nav>
+      </div>
 
-        {/* 일반 설정 */}
+      <div className="space-y-6">
+        {/* 일반 설정 탭 */}
         {activeTab === 'general' && (
           <div className="space-y-6">
-            <div>
-              <label htmlFor="organization-name" className="block text-sm font-medium text-gray-300">
-                조직 이름
-              </label>
-              <input
-                type="text"
-                id="organization-name"
-                value={organizationName}
-                onChange={(e) => setOrganizationName(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 text-white shadow-sm focus:border-[#cba967] focus:ring-[#cba967] sm:text-sm"
-              />
+            {/* 조직 설정 */}
+            <div className="bg-[#1f2937] rounded-lg p-6">
+              <h2 className="text-lg font-medium text-white mb-4">조직 설정</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="org-name" className="block text-sm font-medium text-gray-300 mb-2">
+                    조직 이름
+                  </label>
+                  <input
+                    type="text"
+                    id="org-name"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    className="w-full bg-[#111827] border border-[#374151] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="org-slug" className="block text-sm font-medium text-gray-300 mb-2">
+                    조직 슬러그
+                  </label>
+                  <input
+                    type="text"
+                    id="org-slug"
+                    value={organizationSlug}
+                    onChange={(e) => setOrganizationSlug(e.target.value)}
+                    className="w-full bg-[#111827] border border-[#374151] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="organization-slug" className="block text-sm font-medium text-gray-300">
-                조직 슬러그
-              </label>
-              <input
-                type="text"
-                id="organization-slug"
-                value={organizationSlug}
-                onChange={(e) => setOrganizationSlug(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 text-white shadow-sm focus:border-[#cba967] focus:ring-[#cba967] sm:text-sm"
-              />
-            </div>
-
-            <div className="flex items-center">
-              <input
-                id="anonymous-data"
-                type="checkbox"
-                checked={isAnonymousDataEnabled}
-                onChange={(e) => setIsAnonymousDataEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-[#cba967] focus:ring-[#cba967]"
-              />
-              <label htmlFor="anonymous-data" className="ml-2 block text-sm text-gray-300">
-                익명 데이터 수집 허용
-              </label>
+            {/* 익명 데이터 수집 설정 */}
+            <div className="bg-[#1f2937] rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-medium text-white">익명 데이터 수집</h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    현재 상태: {isAnonymousDataEnabled ? '활성화됨' : '비활성화됨'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsAnonymousDataEnabled(!isAnonymousDataEnabled)}
+                  className={clsx(
+                    'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:ring-offset-2 focus:ring-offset-[#1f2937]',
+                    isAnonymousDataEnabled ? 'bg-[#cba967]' : 'bg-gray-600'
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                      isAnonymousDataEnabled ? 'translate-x-5' : 'translate-x-0'
+                    )}
+                  />
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-gray-400">
+                사이트 개선을 위한 익명 사용 데이터를 수집합니다.
+              </p>
             </div>
           </div>
         )}
 
-        {/* 디자인 설정 */}
+        {/* 디자인 설정 탭 */}
         {activeTab === 'design' && (
           <div className="space-y-6">
-            {/* 언어 변경 컴포넌트 관리 */}
+            {/* 언어 변경 컴포넌트 설정 */}
             <div className="bg-[#1f2937] rounded-lg p-6">
-              <h2 className="text-lg font-medium text-white mb-4">언어 변경 컴포넌트 관리</h2>
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handleLanguageSwitcherToggle}
-                    disabled={isUpdatingLanguageSwitcher}
+                <div>
+                  <h2 className="text-lg font-medium text-white">언어 변경 컴포넌트</h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    현재 상태: {isLanguageSwitcherEnabled ? '활성화됨' : '비활성화됨'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleLanguageSwitcherToggle}
+                  disabled={isUpdatingLanguageSwitcher}
+                  className={clsx(
+                    'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:ring-offset-2 focus:ring-offset-[#1f2937]',
+                    isLanguageSwitcherEnabled ? 'bg-[#cba967]' : 'bg-gray-600'
+                  )}
+                >
+                  <span
                     className={clsx(
-                      'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:ring-offset-2 focus:ring-offset-[#111827]',
-                      isLanguageSwitcherEnabled ? 'bg-[#cba967]' : 'bg-gray-600',
-                      isUpdatingLanguageSwitcher && 'opacity-50 cursor-not-allowed'
+                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                      isLanguageSwitcherEnabled ? 'translate-x-5' : 'translate-x-0'
                     )}
-                  >
-                    <span
-                      className={clsx(
-                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                        isLanguageSwitcherEnabled ? 'translate-x-5' : 'translate-x-0'
-                      )}
-                    />
-                  </button>
-                  <span className="text-white">언어 변경 컴포넌트 활성화</span>
-                </div>
-                <div className="text-sm text-gray-400">
-                  {isUpdatingLanguageSwitcher ? '업데이트 중...' : (isLanguageSwitcherEnabled ? '활성화됨' : '비활성화됨')}
-                </div>
+                  />
+                </button>
               </div>
               <p className="mt-2 text-sm text-gray-400">
                 이 설정을 비활성화하면 사이트의 모든 페이지에서 언어 변경 컴포넌트가 숨겨집니다.
@@ -448,123 +518,20 @@ export default function SiteManagementPage() {
               </div>
 
               {/* 메뉴 목록 */}
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="header-menus">
-                  {(provided) => (
-                    <div 
-                      className="space-y-3"
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                    >
-                      {headerMenus.map((menu, index) => (
-                        <Draggable 
-                          key={menu.id} 
-                          draggableId={menu.id} 
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={clsx(
-                                "flex items-center gap-4 p-4 bg-[#111827] rounded-lg",
-                                snapshot.isDragging && "opacity-50"
-                              )}
-                            >
-                              <div
-                                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                              >
-                                <ArrowsUpDownIcon className="h-5 w-5 text-gray-400" />
-                              </div>
-                              {editingMenu?.id === menu.id ? (
-                                <>
-                                  <input
-                                    type="text"
-                                    value={editingMenu.name.ko}
-                                    onChange={(e) => setEditingMenu({ ...editingMenu, name: { ...editingMenu.name, ko: e.target.value } })}
-                                    className="flex-1 bg-[#374151] border border-[#4b5563] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={editingMenu.name.en}
-                                    onChange={(e) => setEditingMenu({ ...editingMenu, name: { ...editingMenu.name, en: e.target.value } })}
-                                    className="flex-1 bg-[#374151] border border-[#4b5563] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={editingMenu.path}
-                                    onChange={(e) => setEditingMenu({ ...editingMenu, path: e.target.value })}
-                                    className="flex-1 bg-[#374151] border border-[#4b5563] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={handleSaveEdit}
-                                      className="p-2 text-green-500 hover:text-green-400 transition-colors"
-                                    >
-                                      <CheckIcon className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={handleCancelEdit}
-                                      className="p-2 text-red-500 hover:text-red-400 transition-colors"
-                                    >
-                                      <XMarkIcon className="h-5 w-5" />
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="flex-1">
-                                    <div className="font-medium text-white">{menu.name.ko} / {menu.name.en}</div>
-                                    <div className="text-sm text-gray-400">{menu.path}</div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleToggleHeaderMenu(menu.id)}
-                                      className={clsx(
-                                        'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:ring-offset-2 focus:ring-offset-[#111827]',
-                                        menu.isActive ? 'bg-[#cba967]' : 'bg-gray-600'
-                                      )}
-                                    >
-                                      <span
-                                        className={clsx(
-                                          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                                          menu.isActive ? 'translate-x-5' : 'translate-x-0'
-                                        )}
-                                      />
-                                    </button>
-                                    <button
-                                      onClick={() => handleEditMenu(menu)}
-                                      className="p-2 text-blue-500 hover:text-blue-400 transition-colors"
-                                    >
-                                      <PencilIcon className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteHeaderMenu(menu.id)}
-                                      className="p-2 text-red-500 hover:text-red-400 transition-colors"
-                                    >
-                                      <TrashIcon className="h-5 w-5" />
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+              <DraggableList
+                items={headerMenus}
+                onReorder={setHeaderMenus}
+                keyExtractor={(item) => item.id}
+                renderItem={renderMenuItem}
+              />
 
               {/* 헤더 메뉴 관리 섹션의 취소/저장 버튼 */}
               {hasChanges && (
-                <div className="mt-6 flex justify-end gap-4">
+                <div className="flex justify-end gap-4 mt-6">
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-4 py-2 text-sm font-medium text-white bg-[#374151] rounded-lg hover:bg-[#4b5563] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#111827] focus:ring-[#4b5563]"
+                    className="px-4 py-2 text-white bg-gray-600 rounded-lg hover:bg-gray-500 transition-colors"
                   >
                     취소
                   </button>
@@ -573,25 +540,41 @@ export default function SiteManagementPage() {
                     onClick={handleSave}
                     disabled={isSaving}
                     className={clsx(
-                      "flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                      "px-4 py-2 text-white rounded-lg transition-colors",
                       isSaving
-                        ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                        : "bg-[#cba967] text-white hover:bg-[#b89856] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#111827] focus:ring-[#cba967]"
+                        ? "bg-gray-600 cursor-not-allowed"
+                        : "bg-[#cba967] hover:bg-[#b89856]"
                     )}
                   >
-                    {isSaving ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        저장 중...
-                      </>
-                    ) : '저장'}
+                    {isSaving ? "저장 중..." : "저장"}
                   </button>
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* OAuth 앱 탭 */}
+        {activeTab === 'oauth' && (
+          <div className="bg-[#1f2937] rounded-lg p-6">
+            <h2 className="text-lg font-medium text-white mb-4">OAuth 앱 설정</h2>
+            <p className="text-gray-400">OAuth 앱 설정 내용이 여기에 표시됩니다.</p>
+          </div>
+        )}
+
+        {/* 감사 로그 탭 */}
+        {activeTab === 'audit' && (
+          <div className="bg-[#1f2937] rounded-lg p-6">
+            <h2 className="text-lg font-medium text-white mb-4">감사 로그</h2>
+            <p className="text-gray-400">감사 로그 내용이 여기에 표시됩니다.</p>
+          </div>
+        )}
+
+        {/* 법적 문서 탭 */}
+        {activeTab === 'legal' && (
+          <div className="bg-[#1f2937] rounded-lg p-6">
+            <h2 className="text-lg font-medium text-white mb-4">법적 문서 관리</h2>
+            <p className="text-gray-400">법적 문서 관리 내용이 여기에 표시됩니다.</p>
           </div>
         )}
       </div>
@@ -602,6 +585,6 @@ export default function SiteManagementPage() {
         locale="ko"
         initialMode="login"
       />
-    </>
+    </div>
   );
 } 

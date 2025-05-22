@@ -13,8 +13,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
-import { getCurrentUser, signOut } from "@/lib/auth";
+import { useAuth } from "@/components/auth/AuthContext";
 import ProfileModal from "@/components/auth/ProfileModal";
+import { UserRole } from "@/types/supabase";
 
 interface SidebarProps {
   locale: Locale;
@@ -34,35 +35,19 @@ interface SidebarProps {
 export default function DashboardSidebar({ locale, translations, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [userLevel, setUserLevel] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { userProfile, isLoading, signOut } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-
-  // 사용자 권한 체크
-  useEffect(() => {
-    getCurrentUser().then(res => {
-      if (res.success && res.user) {
-        setUserLevel(res.user.user_level);
-        setCurrentUser(res.user);
-      } else {
-        setUserLevel(null);
-        setCurrentUser(null);
-      }
-      setLoading(false);
-    });
-  }, []);
 
   const isActive = (path: string) => {
     return pathname === `/${locale}/dashboard${path}`;
   };
 
   const handleLogout = async () => {
-    const result = await signOut();
-    if (result.success) {
+    try {
+      await signOut();
       router.push(`/${locale}`);
-    } else {
-      console.error('로그아웃 실패:', result.error);
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
       // 실패하더라도 홈으로 리다이렉트
       router.push(`/${locale}`);
     }
@@ -90,7 +75,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
   ];
 
   // Admin 권한이 있으면 관리자 메뉴 추가
-  if (userLevel?.toLowerCase() === "admin") {
+  if (userProfile?.user_level === UserRole.ADMIN) {
     menuItems.unshift({
       name: translations.admin || "관리자",
       href: `/${locale}/dashboard/admin`,
@@ -124,13 +109,25 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
       }
     );
   }
+  // Premium 권한이 있으면 프로젝트 메뉴 추가
+  else if (userProfile?.user_level === UserRole.PREMIUM) {
+    menuItems.push(
+      {
+        name: translations.projects || "프로젝트",
+        href: `/${locale}/dashboard/projects`,
+        icon: DocumentTextIcon,
+        active: isActive("/projects"),
+        onClick: undefined
+      }
+    );
+  }
 
   if (isMobile) {
     return (
       <>
         <div className="bg-[#111827] text-white border-t border-[#1f2937]">
           <nav className="flex justify-between items-center h-14 px-2">
-            {!loading && menuItems.map((item) => (
+            {!isLoading && menuItems.map((item) => (
               item.onClick ? (
                 <button
                   key={item.name}
@@ -168,11 +165,11 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
             </button>
           </nav>
         </div>
-        {isProfileModalOpen && currentUser && (
+        {isProfileModalOpen && userProfile && (
           <ProfileModal
             isOpen={isProfileModalOpen}
             onClose={() => setIsProfileModalOpen(false)}
-            user={currentUser}
+            user={userProfile}
           />
         )}
       </>
@@ -196,7 +193,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
         {/* 메뉴 섹션 */}
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="px-2 space-y-1">
-            {!loading && menuItems.map((item) => (
+            {!isLoading && menuItems.map((item) => (
               item.onClick ? (
                 <button
                   key={item.name}
@@ -241,11 +238,11 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
       </div>
 
       {/* 프로필 설정 모달 */}
-      {isProfileModalOpen && currentUser && (
+      {isProfileModalOpen && userProfile && (
         <ProfileModal
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
-          user={currentUser}
+          user={userProfile}
         />
       )}
     </>

@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
-import { updateUserProfile, uploadProfileImage } from "@/lib/auth";
-import { UserProfile } from "@/lib/supabase";
+import { useAuth, UserProfile } from '@/components/auth/AuthContext';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -24,14 +23,26 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
   const [success, setSuccess] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { supabase } = useAuth();
 
   // 모달이 열릴 때 사용자 정보로 폼 초기화
   useEffect(() => {
     if (isOpen && user) {
+      console.log('🔍 프로필 모달: 사용자 정보 로드', {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        company_name: user.company_name,
+        user_level: user.user_level,
+        has_profile_image: user.profile_image_url ? true : false,
+        created_at: user.created_at
+      });
+
       setFormData({
-        firstName: user.first_name,
-        lastName: user.last_name,
-        companyName: user.company_name || "",
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        companyName: user.company_name || '',
       });
       setProfileImage(user.profile_image_url);
       setError(null);
@@ -103,6 +114,65 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
     }
   };
 
+  // 프로필 이미지 업로드 함수
+  const uploadProfileImage = async (userId: string, file: File) => {
+    try {
+      // 스토리지에 이미지 업로드
+      const fileExt = file.name.split('.').pop();
+      const filePath = `profile_images/${userId}/${Math.random()}.${fileExt}`;
+      
+      const { error: uploadError, data } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) {
+        console.error('이미지 업로드 실패:', uploadError);
+        return { success: false, error: '이미지 업로드에 실패했습니다.' };
+      }
+      
+      // 이미지 URL 가져오기
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      // 프로필 업데이트
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ profile_image_url: publicUrl })
+        .eq('id', userId);
+      
+      if (updateError) {
+        console.error('프로필 업데이트 실패:', updateError);
+        return { success: false, error: '프로필 업데이트에 실패했습니다.' };
+      }
+      
+      return { success: true, url: publicUrl };
+    } catch (error: any) {
+      console.error('이미지 업로드 오류:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // 프로필 정보 업데이트 함수
+  const updateUserProfile = async (userId: string, updates: any) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('프로필 업데이트 실패:', error);
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('프로필 업데이트 오류:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -113,7 +183,11 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
 
     try {
       // 업데이트할 필드만 포함
-      const updates: { first_name?: string; last_name?: string; company_name?: string | null } = {};
+      const updates: { 
+        first_name?: string; 
+        last_name?: string;
+        company_name?: string;
+      } = {};
       
       if (formData.firstName !== user.first_name) {
         updates.first_name = formData.firstName;
@@ -122,9 +196,9 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
       if (formData.lastName !== user.last_name) {
         updates.last_name = formData.lastName;
       }
-      
-      if (formData.companyName !== (user.company_name || "")) {
-        updates.company_name = formData.companyName || null;
+
+      if (formData.companyName !== user.company_name) {
+        updates.company_name = formData.companyName;
       }
 
       // 이미지 파일이 있으면 먼저 업로드
@@ -211,7 +285,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
                   />
                 ) : (
                   <div className="w-24 h-24 bg-[#cba967] rounded-full flex items-center justify-center text-black text-3xl font-medium group-hover:bg-[#d4b67a] transition-colors">
-                    {user?.first_name.charAt(0).toUpperCase()}
+                    {user?.first_name?.charAt(0).toUpperCase() || ''}
                   </div>
                 )}
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -265,7 +339,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
                 value={formData.companyName}
                 onChange={handleChange}
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                placeholder="회사명 (선택사항)"
+                placeholder="회사명"
               />
             </div>
             
@@ -288,11 +362,16 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
               <label className="block text-[#C7C7CC] text-sm mb-1">가입일</label>
               <input
                 type="text"
-                value={user?.created_at ? new Date(user.created_at).toLocaleDateString() : ""}
+                value={user?.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }) : ""}
                 readOnly
                 disabled
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-gray-400 cursor-not-allowed"
               />
+              <p className="text-xs text-[#C7C7CC] mt-1">가입일은 변경할 수 없습니다.</p>
             </div>
             
             {/* 저장 버튼 */}

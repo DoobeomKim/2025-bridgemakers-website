@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserLevel, UserProfile } from "@/lib/supabase";
-import { getCurrentUser } from "@/lib/auth";
+import { UserRole } from "@/types/supabase";
 import { Locale } from "@/lib/i18n";
-import { useAuth } from "@/app/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/AuthContext";
 
 // 타입 정의
 type Translations = {
@@ -23,10 +22,21 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ locale, translations }: DashboardClientProps) {
-  const { userProfile, loading } = useAuth();
-  const userLevel = userProfile?.user_level as UserLevel;
-
-  if (loading) {
+  const { userProfile, isLoading } = useAuth();
+  
+  // 디버깅용 로그 추가
+  useEffect(() => {
+    if (userProfile) {
+      console.log('🔍 DashboardClient: 사용자 정보 확인', {
+        id: userProfile.id,
+        email: userProfile.email,
+        user_level: userProfile.user_level,
+        has_profile_image: userProfile.profile_image_url ? true : false
+      });
+    }
+  }, [userProfile]);
+  
+  if (isLoading) {
     return <div className="flex justify-center items-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>;
@@ -39,9 +49,9 @@ export default function DashboardClient({ locale, translations }: DashboardClien
         <div className="bg-[#1a2234] rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold text-white mb-2">{translations.userLevel}</h2>
           <p className="text-[#cba967]">
-            {userLevel === UserLevel.ADMIN && translations.admin}
-            {userLevel === UserLevel.PREMIUM && translations.premium}
-            {userLevel === UserLevel.BASIC && translations.basic}
+            {userProfile.user_level === UserRole.ADMIN && translations.admin}
+            {userProfile.user_level === UserRole.PREMIUM && translations.premium}
+            {userProfile.user_level === UserRole.BASIC && translations.basic}
           </p>
         </div>
       )}

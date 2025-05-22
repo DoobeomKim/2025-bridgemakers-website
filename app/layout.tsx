@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/app/components/auth/AuthProvider";
+import { createServerClient } from '@/lib/supabase/server';
+import { AuthProvider } from "@/components/auth/AuthContext";
 
-const roboto = Roboto({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-roboto",
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "Bridgemakers - 디지털 컨텐츠 제작 전문업체",
@@ -17,15 +14,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
+  const supabase = createServerClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
   return (
     <html lang="ko">
-      <body className={`${roboto.variable} antialiased`}>
-        <AuthProvider>
+      <body className={inter.className}>
+        <AuthProvider initialSession={session}>
           {children}
         </AuthProvider>
       </body>

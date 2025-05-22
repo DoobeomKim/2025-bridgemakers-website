@@ -1,39 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCurrentUser } from "@/lib/auth";
+import { useAuth } from '@/components/auth/AuthContext';
 import { Locale } from "@/lib/i18n";
-import { UserLevel } from "@/lib/supabase";
-
-interface AdminDashboardClientProps {
-  locale: Locale;
-  translations: { [key: string]: string };
-}
+import { UserRole } from '@/types/supabase';
+import { AdminDashboardClientProps } from './types';
 
 export default function AdminDashboardClient({ locale, translations }: AdminDashboardClientProps) {
-  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const { userProfile, isLoading } = useAuth();
   const [stats, setStats] = useState({
     users: 0,
     projects: 0,
     activities: 0
   });
 
-  // 권한 체크
-  useEffect(() => {
-    getCurrentUser().then(res => {
-      if (res.success && res.user) {
-        setUserLevel(res.user.user_level);
-      } else {
-        setUserLevel(null);
-      }
-      setUserLoading(false);
-    });
-  }, []);
-
   // 어드민 통계 로드
   useEffect(() => {
-    if (userLevel === UserLevel.ADMIN) {
+    if (userProfile?.user_level === UserRole.ADMIN) {
       // 실제로는 API 호출이 필요하지만, 예시로 임시 데이터 사용
       setStats({
         users: 120,
@@ -41,10 +24,10 @@ export default function AdminDashboardClient({ locale, translations }: AdminDash
         activities: 350
       });
     }
-  }, [userLevel]);
+  }, [userProfile]);
 
-  if (userLoading) return <div className="text-white p-8">권한 확인중...</div>;
-  if (userLevel !== UserLevel.ADMIN) {
+  if (isLoading) return <div className="text-white p-8">권한 확인중...</div>;
+  if (userProfile?.user_level !== UserRole.ADMIN) {
     return <div className="text-red-500 p-8 text-center text-lg font-bold">접근 권한이 없습니다.</div>;
   }
 

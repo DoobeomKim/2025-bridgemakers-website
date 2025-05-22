@@ -3,13 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import { signOut } from "@/lib/auth";
-import { UserProfile } from "@/lib/supabase";
-import LanguageSwitcher from "@/components/shared/language-switcher/LanguageSwitcher";
+import { useAuth, UserProfile } from "@/components/auth/AuthContext";
 import { Locale } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/shared/language-switcher/LanguageSwitcher";
 import ProfileDropdownMenu from "@/components/auth/ProfileDropdownMenu";
 import ProfileModal from "@/components/auth/ProfileModal";
-import { useAuth } from "@/app/components/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 
 interface HeaderProps {
@@ -25,7 +23,7 @@ interface HeaderProps {
 
 export default function DashboardHeader({ locale, translations }: HeaderProps) {
   const router = useRouter();
-  const { session, userProfile, loading } = useAuth();
+  const { userProfile, isLoading, signOut } = useAuth();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -48,10 +46,12 @@ export default function DashboardHeader({ locale, translations }: HeaderProps) {
   }, [isProfileMenuOpen]);
 
   const handleLogout = async () => {
-    const result = await signOut();
-    if (result.success) {
+    try {
+      await signOut();
       // 로그아웃 후 메인 페이지로 이동
-      window.location.href = `/${locale}`;
+      router.push(`/${locale}`);
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
     }
   };
 
@@ -67,7 +67,7 @@ export default function DashboardHeader({ locale, translations }: HeaderProps) {
           <LanguageSwitcher locale={locale} />
 
           {/* 프로필 메뉴 */}
-          {loading ? (
+          {isLoading ? (
             <div className="w-8 h-8 bg-gray-600 rounded-full animate-pulse"></div>
           ) : userProfile ? (
             <div className="relative">
@@ -79,7 +79,7 @@ export default function DashboardHeader({ locale, translations }: HeaderProps) {
                   <div className="relative">
                     <img 
                       src={userProfile.profile_image_url} 
-                      alt={`${userProfile.first_name} ${userProfile.last_name}`} 
+                      alt={`${userProfile.first_name || ''} ${userProfile.last_name || ''}`} 
                       className="w-9 h-9 rounded-full object-cover border border-[#cba967] group-hover:border-white transition-colors"
                     />
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#111827] rounded-full flex items-center justify-center border border-[#cba967] group-hover:border-white transition-colors">
@@ -89,7 +89,7 @@ export default function DashboardHeader({ locale, translations }: HeaderProps) {
                 ) : (
                   <div className="relative">
                     <div className="w-9 h-9 bg-[#cba967] rounded-full flex items-center justify-center text-black font-medium group-hover:bg-[#d4b67a] transition-colors">
-                      {userProfile.first_name.charAt(0).toUpperCase()}
+                      {userProfile.first_name ? userProfile.first_name.charAt(0).toUpperCase() : '?'}
                     </div>
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#111827] rounded-full flex items-center justify-center border border-[#cba967] group-hover:border-white transition-colors">
                       <ChevronDownIcon className="w-3 h-3 text-white" />

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getProjects, deleteProjects, updateProjectsVisibility } from "@/lib/projects";
-import { getCurrentUser } from "@/lib/auth";
+import { useAuth } from '@/components/auth/AuthContext';
 import { Locale } from "@/lib/i18n";
 import ProjectsTable from "@/components/dashboard/projects/ProjectsTable";
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, PlusIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import ProjectCreateModal from "@/components/dashboard/projects/ProjectCreateModal";
+import { UserRole } from '@/types/supabase';
 
 interface ProjectsClientProps {
   locale: Locale;
@@ -35,32 +36,19 @@ interface ProjectData {
 }
 
 export default function ProjectsClient({ locale, translations }: ProjectsClientProps) {
+  const { userProfile, isLoading: userLoading } = useAuth();
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userLevel, setUserLevel] = useState<string | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  // 모달 표시 상태 추가
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [showVisibilityMenu, setShowVisibilityMenu] = useState(false);
 
-  useEffect(() => {
-    getCurrentUser().then(res => {
-      if (res.success && res.user) {
-        setUserLevel(res.user.user_level);
-      } else {
-        setUserLevel(null);
-      }
-      setUserLoading(false);
-    });
-  }, []);
-
   // 프로젝트 목록 로딩 함수
   const loadProjects = () => {
-    if (userLevel?.toLowerCase() === "admin") {
+    if (userProfile?.user_level === UserRole.ADMIN) {
       getProjects().then(data => {
         // 데이터 처리 - 필요한 필드가 없을 경우 기본값 설정
         const processedData = data.map((p: any) => ({
@@ -82,7 +70,7 @@ export default function ProjectsClient({ locale, translations }: ProjectsClientP
 
   useEffect(() => {
     loadProjects();
-  }, [userLevel]);
+  }, [userProfile]);
 
   // 검색 처리 함수
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,7 +152,7 @@ export default function ProjectsClient({ locale, translations }: ProjectsClientP
   };
 
   if (userLoading) return <div className="text-white p-8">권한 확인중...</div>;
-  if (userLevel?.toLowerCase() !== "admin") {
+  if (userProfile?.user_level !== UserRole.ADMIN) {
     return <div className="text-red-500 p-8 text-center text-lg font-bold">접근 권한이 없습니다.</div>;
   }
   if (loading) return <div className="text-white p-8">로딩중...</div>;

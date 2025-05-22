@@ -1,32 +1,20 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { cache } from 'react';
+import type { Database } from '@/types/supabase';
 
-export async function createClient() {
-  const cookieStore = cookies()
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // Handle cookie errors
-          }
-        },
-        remove(name: string, options: any) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // Handle cookie errors
-          }
-        },
-      },
-    }
-  )
-} 
+// 같은 요청 내에서 중복 호출 방지를 위해 React 캐시 사용
+export const createServerClient = cache(() => {
+  try {
+    const cookieStore = cookies();
+    return createServerComponentClient<Database>({ 
+      cookies: () => cookieStore 
+    });
+  } catch (error) {
+    console.error('❌ 서버 컴포넌트 Supabase 클라이언트 생성 오류:', error);
+    // 쿠키 접근 오류 발생 시 빈 쿠키 컨테이너 사용
+    return createServerComponentClient<Database>({ 
+      cookies: () => new Map() as any 
+    });
+  }
+}); 

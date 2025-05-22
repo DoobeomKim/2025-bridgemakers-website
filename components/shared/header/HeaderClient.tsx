@@ -4,11 +4,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Locale } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/shared/language-switcher/LanguageSwitcher";
-import AuthButtons from '@/components/auth/AuthButtons';
-import { useAuth } from "@/app/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import ProfileModal from "@/components/auth/ProfileModal";
+import NewAuthButtons from "@/components/auth/NewAuthButtons";
 
 interface HeaderClientProps {
   locale: Locale;
@@ -27,11 +25,10 @@ interface HeaderClientProps {
 export default function HeaderClient({ locale, translations, headerMenus }: HeaderClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { userProfile, loading } = useAuth();
+  const { userProfile, isLoading, signOut } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  
   // 스크롤 감지하여 헤더 배경 조정
   useEffect(() => {
     const handleScroll = () => {
@@ -48,17 +45,15 @@ export default function HeaderClient({ locale, translations, headerMenus }: Head
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      setIsAuthenticating(true);
+      await signOut();
       router.refresh();
       setMobileMenuOpen(false);
     } catch (error) {
       console.error('로그아웃 실패:', error);
+    } finally {
+      setIsAuthenticating(false);
     }
-  };
-
-  const handleProfileClick = () => {
-    setMobileMenuOpen(false);
-    setIsProfileModalOpen(true);
   };
 
   const isAuthenticated = !!userProfile;
@@ -97,10 +92,10 @@ export default function HeaderClient({ locale, translations, headerMenus }: Head
         {/* 우측 버튼들 */}
         <div className="hidden md:flex items-center space-x-4 flex-shrink-0">
           <LanguageSwitcher locale={locale} />
-          {loading ? (
+          {isLoading ? (
             <div className="w-8 h-8 rounded-full bg-gray-600 animate-pulse"></div>
           ) : (
-            <AuthButtons locale={locale} />
+            <NewAuthButtons locale={locale} />
           )}
         </div>
 
@@ -145,57 +140,15 @@ export default function HeaderClient({ locale, translations, headerMenus }: Head
           <div className="border-t border-[#222] my-2"></div>
 
           {/* 인증 관련 메뉴 */}
-          {isAuthenticated ? (
-            <>
-              <Link
-                href={`/${locale}/dashboard`}
-                className="block py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                대시보드
-              </Link>
-              <button
-                onClick={handleProfileClick}
-                className="w-full text-left py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors"
-              >
-                프로필 설정
-              </button>
-              <button
-                onClick={handleLogout}
-                className="w-full text-left py-3 px-3 text-base font-medium text-red-500 hover:text-red-400 hover:bg-[rgba(239,68,68,0.1)] rounded-md transition-colors"
-              >
-                로그아웃
-              </button>
-            </>
+          {isLoading ? (
+            <div className="py-3 px-3">
+              <div className="w-full h-10 bg-gray-800 rounded animate-pulse"></div>
+            </div>
           ) : (
-            <>
-              <Link
-                href={`/${locale}/login`}
-                className="block py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {translations.login}
-              </Link>
-              <Link
-                href={`/${locale}/register`}
-                className="block py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {translations.register}
-              </Link>
-            </>
+            <NewAuthButtons locale={locale} isMobile={true} />
           )}
         </div>
       </div>
-
-      {/* 프로필 설정 모달 */}
-      {isProfileModalOpen && userProfile && (
-        <ProfileModal
-          isOpen={isProfileModalOpen}
-          onClose={() => setIsProfileModalOpen(false)}
-          user={userProfile}
-        />
-      )}
     </header>
   );
 } 

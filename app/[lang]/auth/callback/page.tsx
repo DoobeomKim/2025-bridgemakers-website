@@ -2,7 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { Database } from '@/types/supabase';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -10,7 +11,7 @@ export default function AuthCallback() {
   
   useEffect(() => {
     const handleCallback = async () => {
-      const supabase = createClient();
+      const supabase = createClientComponentClient<Database>();
       
       // URL에서 에러 파라미터 확인
       const error = searchParams.get('error');

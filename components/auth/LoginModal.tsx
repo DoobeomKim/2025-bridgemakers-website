@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { signIn, signUp, resetPassword } from "@/lib/auth";
-import { useAuth } from '@/app/components/auth/AuthProvider';
+import { useAuth } from '@/components/auth/AuthContext';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -25,6 +24,8 @@ interface FormErrors {
 }
 
 const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginModalProps) => {
+  const { signInWithEmail: signIn, signUpWithEmail: signUp, resetPassword } = useAuth();
+  
   // 현재 모드 (로그인, 회원가입, 비밀번호 찾기)
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   
@@ -218,12 +219,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
     setSuccess(null);
     
     try {
-      const result = await signIn(email, password);
-      
-      if (!result.success) {
-        throw new Error(result.error || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
-      }
-      
+      await signIn(email, password);
       setSuccess("로그인에 성공했습니다.");
       
       // 성공 시 모달 닫기 전 잠시 대기
@@ -254,20 +250,16 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
     setSuccess(null);
     
     try {
-      const result = await signUp(
+      await signUp(
         registerForm.email,
         registerForm.password,
         registerForm.firstName,
         registerForm.lastName
       );
       
-      if (!result.success) {
-        throw new Error(result.error || "회원가입에 실패했습니다.");
-      }
+      setSuccess("회원가입이 완료되었습니다. 이메일을 확인해주세요.");
       
-      setSuccess("회원가입에 성공했습니다. 이메일 인증 후 로그인해주세요.");
-      
-      // 성공 시 로그인 모드로 전환 전 잠시 대기
+      // 성공 시 로그인 모드로 전환
       setTimeout(() => {
         setMode('login');
         setEmail(registerForm.email);
@@ -287,12 +279,12 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
     e.preventDefault();
     
     if (!email) {
-      setError("이메일을 입력해주세요.");
+      setFormErrors(prev => ({ ...prev, email: "이메일을 입력해주세요." }));
       return;
     }
     
     if (!validateEmail(email)) {
-      setError("유효한 이메일 주소를 입력해주세요.");
+      setFormErrors(prev => ({ ...prev, email: "유효한 이메일 주소를 입력해주세요." }));
       return;
     }
     
@@ -301,15 +293,10 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
     setSuccess(null);
     
     try {
-      const result = await resetPassword(email);
-      
-      if (!result.success) {
-        throw new Error(result.error || "비밀번호 재설정 이메일 전송에 실패했습니다.");
-      }
-      
+      await resetPassword(email);
       setSuccess("비밀번호 재설정 이메일이 전송되었습니다. 이메일을 확인해주세요.");
       
-      // 성공 시 로그인 모드로 전환 전 잠시 대기
+      // 성공 시 로그인 모드로 전환
       setTimeout(() => {
         setMode('login');
       }, 2000);

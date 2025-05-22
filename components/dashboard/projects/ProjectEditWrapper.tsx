@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import { getCurrentUser } from "@/lib/auth";
+import { useState } from "react";
 import { Locale } from "@/lib/i18n";
 import ProjectEditModal from "./ProjectEditModal";
+import { useAuth } from "@/components/auth/AuthContext";
+import { UserRole } from "@/types/supabase";
 
 interface ProjectEditWrapperProps {
   locale: Locale;
@@ -12,24 +13,7 @@ interface ProjectEditWrapperProps {
 
 export default function ProjectEditWrapper({ locale, projectId }: ProjectEditWrapperProps) {
   const [isModalOpen, setIsModalOpen] = useState(true);
-  const [userLevel, setUserLevel] = useState<string | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
-
-  // 사용자 권한 체크
-  useEffect(() => {
-    getCurrentUser().then(res => {
-      if (res.success && res.user) {
-        setUserLevel(res.user.user_level);
-      } else {
-        setUserLevel(null);
-      }
-      setUserLoading(false);
-    }).catch(err => {
-      console.error("사용자 정보 로드 오류:", err);
-      setUserLevel(null);
-      setUserLoading(false);
-    });
-  }, []);
+  const { userProfile, isLoading } = useAuth();
 
   // 모달 닫기 처리 (목록 페이지로 리다이렉트)
   const handleCloseModal = () => {
@@ -44,12 +28,12 @@ export default function ProjectEditWrapper({ locale, projectId }: ProjectEditWra
   };
 
   // 로딩 상태 처리
-  if (userLoading) {
+  if (isLoading) {
     return <div className="text-white p-8 text-center">권한 확인중...</div>;
   }
 
   // 권한 체크
-  if (userLevel?.toLowerCase() !== "admin") {
+  if (!userProfile || userProfile.user_level !== UserRole.ADMIN) {
     return (
       <div className="bg-[#1A2234] rounded-lg p-6 shadow-lg text-center">
         <div className="text-red-500 p-8 text-center text-lg font-bold">

@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import fs from 'fs/promises';
 import path from 'path';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient } from '@/lib/supabase/server';
 
-const CONFIG_PATH = path.join(process.cwd(), 'lib/config/settings.json');
+const CONFIG_PATH = path.join(process.cwd(), 'data', 'settings.json');
 
 // 설정 파일 읽기
 async function readSettings() {
@@ -27,6 +26,9 @@ async function writeSettings(settings: any) {
   }
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // 언어 변경 컴포넌트 상태 조회
 export async function GET() {
   try {
@@ -45,35 +47,10 @@ export async function GET() {
 // 언어 변경 컴포넌트 상태 업데이트
 export async function PUT(request: Request) {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch (error) {
-              // Handle cookie errors
-            }
-          },
-          remove(name: string, options: any) {
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch (error) {
-              // Handle cookie errors
-            }
-          },
-        },
-      }
-    );
-
-    // 로그인 상태 확인
+    // 세션 체크
+    const supabase = createServerClient();
     const { data: { user }, error: sessionError } = await supabase.auth.getUser();
+    
     if (sessionError || !user) {
       return NextResponse.json(
         { error: '로그인이 필요합니다.' },
