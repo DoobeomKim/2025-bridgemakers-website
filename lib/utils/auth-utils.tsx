@@ -2,39 +2,29 @@
 
 import React from 'react';
 import { useEffect, useState } from 'react';
-import { getCurrentUser } from '@/lib/auth';
-import { UserLevel } from '@/lib/supabase';
+import { useAuth } from '@/components/auth/AuthContext';
+import { UserRole } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
 
 // 사용자 권한 확인 훅
 export function useUserPermission() {
-  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
+  const { userProfile, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkUserPermission = async () => {
-      try {
-        setIsLoading(true);
-        const result = await getCurrentUser();
-        
-        if (result.success && result.user) {
-          setUserLevel(result.user.user_level as UserLevel);
-        } else {
-          setUserLevel(null);
-        }
-      } catch (err: any) {
-        console.error('권한 확인 오류:', err);
-        setError(err.message || '권한을 확인하는 중 오류가 발생했습니다.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(authLoading);
+    if (!authLoading && !userProfile) {
+      setError('사용자 정보를 찾을 수 없습니다.');
+    }
+  }, [authLoading, userProfile]);
 
-    checkUserPermission();
-  }, []);
-
-  return { userLevel, isAdmin: userLevel === UserLevel.ADMIN, isLoading, error };
+  return { 
+    userLevel: userProfile?.user_level || null, 
+    isAdmin: userProfile?.user_level === UserRole.ADMIN, 
+    isLoading, 
+    error 
+  };
 }
 
 // 관리자 권한 확인 컴포넌트
@@ -43,7 +33,7 @@ export function AdminProtected({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && userLevel !== UserLevel.ADMIN) {
+    if (!isLoading && userLevel !== UserRole.ADMIN) {
       router.push('/dashboard');
     }
   }, [isLoading, userLevel, router]);
@@ -56,7 +46,7 @@ export function AdminProtected({ children }: { children: React.ReactNode }) {
     return <div className="p-8 text-center text-red-500">{error}</div>;
   }
 
-  if (userLevel !== UserLevel.ADMIN) {
+  if (userLevel !== UserRole.ADMIN) {
     return <div className="p-8 text-center">접근 권한이 없습니다.</div>;
   }
 
