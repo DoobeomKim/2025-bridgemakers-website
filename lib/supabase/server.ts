@@ -1,10 +1,32 @@
-import { createClient } from '@supabase/supabase-js';
-import { Database } from '../../types/supabase';
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-// 서버 사이드에서 Supabase 클라이언트 생성
-export function createServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  
-  return createClient<Database>(supabaseUrl, supabaseAnonKey);
+export async function createClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {
+            // Handle cookie errors
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set({ name, value: '', ...options })
+          } catch (error) {
+            // Handle cookie errors
+          }
+        },
+      },
+    }
+  )
 } 

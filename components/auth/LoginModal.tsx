@@ -5,12 +5,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { signIn, signUp, resetPassword } from "@/lib/auth";
+import { useAuth } from '@/app/components/auth/AuthProvider';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   locale: string;
   initialMode?: 'login' | 'register' | 'forgot';
+}
+
+// 폼 에러 타입 정의
+interface FormErrors {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  terms?: string;
 }
 
 const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginModalProps) => {
@@ -32,7 +43,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
   });
   
   // 폼 유효성 검증 상태 추가
-  const [formErrors, setFormErrors] = useState({
+  const [formErrors, setFormErrors] = useState<FormErrors>({
     email: "",
     password: "",
     confirmPassword: "",
@@ -45,6 +56,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const { session } = useAuth();
 
   // 모달이 열릴 때마다 상태 초기화
   useEffect(() => {
@@ -68,19 +80,21 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
   // 모달 외부 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      // 이벤트가 모달 컨테이너에서 시작된 경우에만 처리
+      if (event.target === event.currentTarget) {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      // mousedown 대신 click 이벤트 사용
+      document.addEventListener("click", handleClickOutside);
       // 스크롤 방지
       document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
       document.body.style.overflow = "auto";
     };
   }, [isOpen, onClose]);
@@ -102,6 +116,13 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
     };
   }, [isOpen, onClose]);
   
+  // 로그인 상태가 변경되면 모달 닫기
+  useEffect(() => {
+    if (session) {
+      onClose();
+    }
+  }, [session, onClose]);
+
   // 이메일 유효성 검증 함수
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -115,81 +136,102 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
     return passwordRegex.test(password);
   };
 
-  // 폼 필드 변경 핸들러 수정
-  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
+  // 회원가입 폼 유효성 검증
+  const validateRegisterForm = (): boolean => {
+    const errors: FormErrors = {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: "",
+      terms: ""
+    };
     
-    setRegisterForm(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-    
-    // 실시간 유효성 검증
-    let error = "";
-    
-    if (name === 'email' && value) {
-      if (!validateEmail(value)) {
-        error = "유효한 이메일 주소를 입력해주세요.";
-      }
+    if (!registerForm.email) {
+      errors.email = "이메일을 입력해주세요.";
+    } else if (!validateEmail(registerForm.email)) {
+      errors.email = "유효한 이메일 주소를 입력해주세요.";
     }
     
-    if (name === 'password' && value) {
-      if (!validatePassword(value)) {
-        error = "비밀번호는 8자 이상, 대문자, 소문자, 숫자, 특수문자(@$!%*?&)를 포함해야 합니다.";
-      }
+    if (!registerForm.password) {
+      errors.password = "비밀번호를 입력해주세요.";
+    } else if (!validatePassword(registerForm.password)) {
+      errors.password = "비밀번호는 8자 이상, 대문자, 소문자, 숫자, 특수문자(@$!%*?&)를 포함해야 합니다.";
     }
     
-    if (name === 'confirmPassword' && value) {
-      if (value !== registerForm.password) {
-        error = "비밀번호가 일치하지 않습니다.";
-      }
+    if (!registerForm.confirmPassword) {
+      errors.confirmPassword = "비밀번호 확인을 입력해주세요.";
+    } else if (registerForm.password !== registerForm.confirmPassword) {
+      errors.confirmPassword = "비밀번호가 일치하지 않습니다.";
     }
     
-    setFormErrors(prev => ({
-      ...prev,
-      [name]: error
-    }));
-    
-    // 비밀번호가 변경되면 비밀번호 확인 필드도 검증
-    if (name === 'password' && registerForm.confirmPassword) {
-      const confirmError = value !== registerForm.confirmPassword 
-        ? "비밀번호가 일치하지 않습니다." 
-        : "";
-      
-      setFormErrors(prev => ({
-        ...prev,
-        confirmPassword: confirmError
-      }));
+    if (!registerForm.firstName) {
+      errors.firstName = "이름을 입력해주세요.";
     }
+    
+    if (!registerForm.lastName) {
+      errors.lastName = "성을 입력해주세요.";
+    }
+    
+    if (!registerForm.terms) {
+      errors.terms = "이용약관에 동의해주세요.";
+    }
+    
+    setFormErrors(errors);
+    return !Object.values(errors).some(error => error !== "");
+  };
+
+  // 로그인 폼 유효성 검증
+  const validateLoginForm = (): boolean => {
+    const errors: FormErrors = {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: ""
+    };
+    
+    if (!email) {
+      errors.email = "이메일을 입력해주세요.";
+    } else if (!validateEmail(email)) {
+      errors.email = "유효한 이메일 주소를 입력해주세요.";
+    }
+    
+    if (!password) {
+      errors.password = "비밀번호를 입력해주세요.";
+    }
+    
+    setFormErrors(errors);
+    return !Object.values(errors).some(error => error !== "");
   };
 
   // 로그인 처리
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 입력값 검증
-    if (!email || !password) {
-      setError("이메일과 비밀번호를 모두 입력해주세요.");
+    if (!validateLoginForm()) {
       return;
     }
     
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
     
     try {
-      // 로그인 API 호출
       const result = await signIn(email, password);
       
       if (!result.success) {
         throw new Error(result.error || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
       }
       
-      // 성공 시 모달 닫기
-      onClose();
+      setSuccess("로그인에 성공했습니다.");
       
-      // 페이지 새로고침으로 인증 상태 업데이트
-      window.location.reload();
+      // 성공 시 모달 닫기 전 잠시 대기
+      setTimeout(() => {
+        onClose();
+        // 페이지 새로고침으로 인증 상태 업데이트
+        window.location.reload();
+      }, 1000);
       
     } catch (error: any) {
       console.error("로그인 실패:", error.message);
@@ -198,48 +240,20 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
       setIsLoading(false);
     }
   };
-  
-  // 회원가입 처리 함수 수정
+
+  // 회원가입 처리
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateRegisterForm()) {
+      return;
+    }
+    
+    setIsLoading(true);
     setError(null);
-    
-    // 모든 필드 유효성 검증
-    const errors = {
-      email: !registerForm.email ? "이메일을 입력해주세요." : 
-             !validateEmail(registerForm.email) ? "유효한 이메일 주소를 입력해주세요." : "",
-      
-      password: !registerForm.password ? "비밀번호를 입력해주세요." : 
-                !validatePassword(registerForm.password) ? 
-                "비밀번호는 8자 이상, 대문자, 소문자, 숫자, 특수문자(@$!%*?&)를 포함해야 합니다." : "",
-      
-      confirmPassword: !registerForm.confirmPassword ? "비밀번호 확인을 입력해주세요." :
-                       registerForm.password !== registerForm.confirmPassword ? 
-                       "비밀번호가 일치하지 않습니다." : "",
-      
-      firstName: !registerForm.firstName ? "이름을 입력해주세요." : "",
-      lastName: !registerForm.lastName ? "성을 입력해주세요." : "",
-    };
-    
-    setFormErrors(errors);
-    
-    // 에러가 있는지 확인
-    const hasErrors = Object.values(errors).some(error => error !== "");
-    
-    if (hasErrors) {
-      setError("입력 정보를 확인해주세요.");
-      return;
-    }
-    
-    if (!registerForm.terms) {
-      setError("서비스 이용약관과 개인정보 처리방침에 동의해주세요.");
-      return;
-    }
+    setSuccess(null);
     
     try {
-      setIsLoading(true);
-      
-      // 회원가입 API 호출
       const result = await signUp(
         registerForm.email,
         registerForm.password,
@@ -248,50 +262,61 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
       );
       
       if (!result.success) {
-        throw new Error(result.error || "회원가입 중 오류가 발생했습니다.");
+        throw new Error(result.error || "회원가입에 실패했습니다.");
       }
       
-      // 성공 메시지 표시
-      setSuccess("회원가입이 완료되었습니다! 로그인해주세요.");
+      setSuccess("회원가입에 성공했습니다. 이메일 인증 후 로그인해주세요.");
       
-      // 3초 후 로그인 모드로 전환
+      // 성공 시 로그인 모드로 전환 전 잠시 대기
       setTimeout(() => {
-        setSuccess(null);
         setMode('login');
-      }, 3000);
+        setEmail(registerForm.email);
+        setPassword("");
+      }, 2000);
       
-    } catch (err: any) {
-      console.error("회원가입 오류:", err);
-      setError(err.message);
+    } catch (error: any) {
+      console.error("회원가입 실패:", error.message);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   // 비밀번호 재설정 처리
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     
     if (!email) {
       setError("이메일을 입력해주세요.");
       return;
     }
     
+    if (!validateEmail(email)) {
+      setError("유효한 이메일 주소를 입력해주세요.");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      setIsLoading(true);
-      
       const result = await resetPassword(email);
       
       if (!result.success) {
-        throw new Error(result.error || "비밀번호 재설정 메일 발송에 실패했습니다.");
+        throw new Error(result.error || "비밀번호 재설정 이메일 전송에 실패했습니다.");
       }
       
-      setSuccess("비밀번호 재설정 메일을 발송했습니다. 메일함을 확인해주세요.");
+      setSuccess("비밀번호 재설정 이메일이 전송되었습니다. 이메일을 확인해주세요.");
       
-    } catch (err: any) {
-      console.error("비밀번호 재설정 오류:", err);
-      setError(err.message);
+      // 성공 시 로그인 모드로 전환 전 잠시 대기
+      setTimeout(() => {
+        setMode('login');
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error("비밀번호 재설정 실패:", error.message);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -300,11 +325,19 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 px-4">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 px-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div 
         ref={modalRef}
         className="bg-[#050a16] rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-[rgba(255,255,255,0.1)]"
         style={{ maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* 모달 헤더 */}
         <div className="flex justify-between items-center p-5 border-b border-[rgba(255,255,255,0.1)]">
@@ -516,7 +549,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                     name="firstName"
                     type="text"
                     value={registerForm.firstName}
-                    onChange={handleRegisterChange}
+                    onChange={(e) => setRegisterForm(prev => ({ ...prev, firstName: e.target.value }))}
                     required
                     className={`w-full py-3 px-4 bg-[#0d1526] border ${formErrors.firstName ? 'border-[#ED5757]' : 'border-[rgba(255,255,255,0.1)]'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent`}
                   />
@@ -533,7 +566,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                     name="lastName"
                     type="text"
                     value={registerForm.lastName}
-                    onChange={handleRegisterChange}
+                    onChange={(e) => setRegisterForm(prev => ({ ...prev, lastName: e.target.value }))}
                     required
                     className={`w-full py-3 px-4 bg-[#0d1526] border ${formErrors.lastName ? 'border-[#ED5757]' : 'border-[rgba(255,255,255,0.1)]'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent`}
                   />
@@ -554,7 +587,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                   type="email"
                   autoComplete="email"
                   value={registerForm.email}
-                  onChange={handleRegisterChange}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
                   required
                   className={`w-full py-3 px-4 bg-[#0d1526] border ${formErrors.email ? 'border-[#ED5757]' : 'border-[rgba(255,255,255,0.1)]'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent`}
                 />
@@ -574,7 +607,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                   type="password"
                   autoComplete="new-password"
                   value={registerForm.password}
-                  onChange={handleRegisterChange}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
                   required
                   className={`w-full py-3 px-4 bg-[#0d1526] border ${formErrors.password ? 'border-[#ED5757]' : 'border-[rgba(255,255,255,0.1)]'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent`}
                 />
@@ -598,7 +631,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                   type="password"
                   autoComplete="new-password"
                   value={registerForm.confirmPassword}
-                  onChange={handleRegisterChange}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   required
                   className={`w-full py-3 px-4 bg-[#0d1526] border ${formErrors.confirmPassword ? 'border-[#ED5757]' : 'border-[rgba(255,255,255,0.1)]'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent`}
                 />
@@ -614,7 +647,7 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                   name="terms"
                   type="checkbox"
                   checked={registerForm.terms}
-                  onChange={handleRegisterChange}
+                  onChange={(e) => setRegisterForm(prev => ({ ...prev, terms: e.target.checked }))}
                   required
                   className="h-4 w-4 text-[#cba967] focus:ring-[#cba967] border-gray-700 rounded bg-[#0d1526] mt-1"
                 />

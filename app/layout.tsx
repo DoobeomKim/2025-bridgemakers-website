@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/app/components/auth/AuthProvider";
 
 const roboto = Roboto({
   weight: ["400", "700"],
@@ -11,6 +12,9 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "Bridgemakers - 디지털 컨텐츠 제작 전문업체",
   description: "영상 제작, 웹 디자인, 브로셔 디자인 및 온라인 마케팅 서비스를 제공하는 Bridgemakers 공식 웹사이트입니다.",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
@@ -21,7 +25,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`${roboto.variable} antialiased`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

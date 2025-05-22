@@ -1,0 +1,42 @@
+[
+  {
+    "id": "about",
+    "name": {
+      "ko": "About",
+      "en": "About"
+    },
+    "path": "/about",
+    "isActive": false,
+    "orderIndex": 1
+  },
+  {
+    "id": "services",
+    "name": {
+      "ko": "Services",
+      "en": "Services"
+    },
+    "path": "/services",
+    "isActive": false,
+    "orderIndex": 2
+  },
+  {
+    "id": "work",
+    "name": {
+      "ko": "Work",
+      "en": "Work"
+    },
+    "path": "/work",
+    "isActive": true,
+    "orderIndex": 3
+  },
+  {
+    "id": "contact",
+    "name": {
+      "ko": "Contact us",
+      "en": "Contact us"
+    },
+    "path": "/contact",
+    "isActive": false,
+    "orderIndex": 4
+  }
+]

@@ -8,7 +8,8 @@ import {
   Cog6ToothIcon,
   DocumentTextIcon,
   ArrowRightOnRectangleIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  GlobeAltIcon
 } from "@heroicons/react/24/outline";
 import { Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ interface SidebarProps {
     projects: string;
     logout: string;
     admin: string;
+    site_management: string;
     [key: string]: string;
   };
   isMobile?: boolean;
@@ -70,7 +72,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
     setIsProfileModalOpen(true);
   };
 
-  // 기본 메뉴 아이템
+  // 기본 메뉴 아이템 (모든 사용자가 접근 가능)
   const menuItems = [
     {
       name: translations.dashboard || "대시보드",
@@ -84,21 +86,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
       icon: UserIcon,
       active: isActive("/profile"),
       onClick: handleProfileClick
-    },
-    {
-      name: translations.projects || "프로젝트",
-      href: `/${locale}/dashboard/projects`,
-      icon: DocumentTextIcon,
-      active: isActive("/projects"),
-      onClick: undefined
-    },
-    {
-      name: translations.settings || "계정 관리",
-      href: `/${locale}/dashboard/settings`,
-      icon: Cog6ToothIcon,
-      active: isActive("/settings"),
-      onClick: undefined
-    },
+    }
   ];
 
   // Admin 권한이 있으면 관리자 메뉴 추가
@@ -110,6 +98,31 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
       active: isActive("/admin"),
       onClick: undefined
     });
+    
+    // Admin 전용 추가 메뉴
+    menuItems.push(
+      {
+        name: translations.projects || "프로젝트",
+        href: `/${locale}/dashboard/projects`,
+        icon: DocumentTextIcon,
+        active: isActive("/projects"),
+        onClick: undefined
+      },
+      {
+        name: translations.settings || "계정 관리",
+        href: `/${locale}/dashboard/settings`,
+        icon: Cog6ToothIcon,
+        active: isActive("/settings"),
+        onClick: undefined
+      },
+      {
+        name: translations.site_management || "사이트 관리",
+        href: `/${locale}/dashboard/site-management`,
+        icon: GlobeAltIcon,
+        active: isActive("/site-management"),
+        onClick: undefined
+      }
+    );
   }
 
   if (isMobile) {

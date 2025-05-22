@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
+import { getHeaderMenus } from "@/lib/constants/menus";
 
-export default function Footer({ locale }: { locale: Locale }) {
+interface FooterProps {
+  locale: Locale;
+}
+
+export default async function Footer({ locale }: FooterProps) {
   const t = getTranslations(locale, "common");
+  const headerMenus = await getHeaderMenus(locale);
   
   return (
     <footer className="bg-black text-white border-t border-[rgba(255,255,255,0.1)]">
@@ -25,38 +31,16 @@ export default function Footer({ locale }: { locale: Locale }) {
                 Links
               </h3>
               <ul className="mt-4 space-y-4">
-                <li>
+                {headerMenus.map((item) => (
+                  <li key={item.href}>
                   <Link
-                    href={`/${locale}/(public)/about`}
+                      href={item.href}
                     className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
                   >
-                    {t.about}
+                      {item.label}
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href={`/${locale}/(public)/services`}
-                    className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
-                  >
-                    {t.services}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href={`/${locale}/(public)/work`}
-                    className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
-                  >
-                    {t.work}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href={`/${locale}/(public)/contact`}
-                    className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
-                  >
-                    {t.contact}
-                  </Link>
-                </li>
+                ))}
               </ul>
             </div>
             <div>

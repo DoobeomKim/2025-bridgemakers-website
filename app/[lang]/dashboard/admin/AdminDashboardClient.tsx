@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { Locale } from "@/lib/i18n";
+import { UserLevel } from "@/lib/supabase";
 
 interface AdminDashboardClientProps {
   locale: Locale;
@@ -10,7 +11,7 @@ interface AdminDashboardClientProps {
 }
 
 export default function AdminDashboardClient({ locale, translations }: AdminDashboardClientProps) {
-  const [userLevel, setUserLevel] = useState<string | null>(null);
+  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [stats, setStats] = useState({
     users: 0,
@@ -32,7 +33,7 @@ export default function AdminDashboardClient({ locale, translations }: AdminDash
 
   // 어드민 통계 로드
   useEffect(() => {
-    if (userLevel?.toLowerCase() === "admin") {
+    if (userLevel === UserLevel.ADMIN) {
       // 실제로는 API 호출이 필요하지만, 예시로 임시 데이터 사용
       setStats({
         users: 120,
@@ -43,7 +44,7 @@ export default function AdminDashboardClient({ locale, translations }: AdminDash
   }, [userLevel]);
 
   if (userLoading) return <div className="text-white p-8">권한 확인중...</div>;
-  if (userLevel?.toLowerCase() !== "admin") {
+  if (userLevel !== UserLevel.ADMIN) {
     return <div className="text-red-500 p-8 text-center text-lg font-bold">접근 권한이 없습니다.</div>;
   }
 

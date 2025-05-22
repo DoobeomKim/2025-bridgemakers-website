@@ -1,0 +1,8 @@
+{
+  "name": "Bridgemakers",
+  "short_name": "Bridgemakers",
+  "description": "디지털 컨텐츠 제작 전문업체",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "display": "standalone"
+} 

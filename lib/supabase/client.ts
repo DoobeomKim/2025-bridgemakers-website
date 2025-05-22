@@ -1,11 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
+"use client";
+
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../../types/supabase';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+let supabaseInstance: ReturnType<typeof createSupabaseClient> | null = null;
 
-// Supabase 클라이언트 생성 - 클라이언트 사이드에서 사용
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const createClient = () => {
+  if (supabaseInstance) return supabaseInstance;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+
+  supabaseInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: 'bridgemakers-auth',
+      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
+  });
+
+  return supabaseInstance;
+};
+
+// 싱글톤 인스턴스 export
+export const supabase = createClient();
 
 // 사용자 프로필 생성 또는 업데이트
 export async function upsertProfile(

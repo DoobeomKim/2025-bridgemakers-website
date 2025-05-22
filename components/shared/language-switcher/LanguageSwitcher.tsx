@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { locales, Locale } from "@/lib/i18n";
+import { useEffect, useState } from "react";
 
 export default function LanguageSwitcher({
   locale,
@@ -12,6 +13,28 @@ export default function LanguageSwitcher({
   className?: string;
 }) {
   const pathname = usePathname();
+  const [isEnabled, setIsEnabled] = useState(true);
+  
+  useEffect(() => {
+    // 언어 변경 컴포넌트 상태 로드
+    const loadLanguageSwitcherState = async () => {
+      try {
+        const response = await fetch('/api/settings/language-switcher');
+        const { enabled } = await response.json();
+        setIsEnabled(enabled);
+      } catch (error) {
+        console.error('Error loading language switcher state:', error);
+        setIsEnabled(true); // 에러 발생 시 기본값으로 활성화
+      }
+    };
+
+    loadLanguageSwitcherState();
+  }, []);
+
+  // 컴포넌트가 비활성화된 경우 null 반환
+  if (!isEnabled) {
+    return null;
+  }
   
   // 현재 URL에서 로케일 부분을 바꿔서 새 경로 생성
   function getPathWithLocale(locale: Locale) {

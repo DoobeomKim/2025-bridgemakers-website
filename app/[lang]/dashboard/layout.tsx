@@ -1,20 +1,42 @@
+"use client";
+
 import { validateLocale, getTranslations } from "@/lib/i18n";
-import { use } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DashboardSidebar from "./components/DashboardSidebar";
 import DashboardHeader from "./components/DashboardHeader";
+import { useAuth } from "@/app/components/auth/AuthProvider";
 
-export default function DashboardLayout({
-  children,
-  params,
-}: {
+interface DashboardLayoutProps {
   children: React.ReactNode;
   params: { lang: string };
-}) {
-  // 서버에서 params 처리
-  const resolvedParams = use(Promise.resolve(params));
-  const langCode = resolvedParams.lang;
+}
+
+export default function DashboardLayout({ children, params }: DashboardLayoutProps) {
+  const router = useRouter();
+  const { session, loading } = useAuth();
+  const langCode = params.lang;
   const locale = validateLocale(langCode);
   const translations = getTranslations(locale, "dashboard");
+
+  // 인증되지 않은 사용자는 홈페이지로 리다이렉트
+  useEffect(() => {
+    const redirectUnauthorized = async () => {
+      if (!loading && !session) {
+        router.push(`/${locale}`);
+      }
+    };
+
+    redirectUnauthorized();
+  }, [loading, session, locale, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0d1526]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0d1526]">
@@ -30,7 +52,14 @@ export default function DashboardLayout({
 
         {/* 메인 컨텐츠 */}
         <main className="flex-1 overflow-y-auto p-5 pb-16 md:pb-5">
-          {children}
+          {session ? children : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-white mb-4">로그인이 필요합니다</h2>
+                <p className="text-gray-400">대시보드를 이용하기 위해서는 로그인이 필요합니다.</p>
+              </div>
+            </div>
+          )}
         </main>
 
         {/* 모바일 하단 메뉴 */}

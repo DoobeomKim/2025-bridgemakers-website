@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { UserLevel, UserProfile } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 import { Locale } from "@/lib/i18n";
+import { useAuth } from "@/app/components/auth/AuthProvider";
 
 // 타입 정의
 type Translations = {
@@ -22,31 +23,10 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ locale, translations }: DashboardClientProps) {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { userProfile, loading } = useAuth();
+  const userLevel = userProfile?.user_level as UserLevel;
 
-  // Supabase를 통한 인증 상태 확인
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true);
-      const result = await getCurrentUser();
-      if (result.success && result.user) {
-        setCurrentUser(result.user);
-        setUserLevel(result.user.user_level as UserLevel);
-        console.log('Supabase 사용자 정보 로드됨:', result.user);
-      } else {
-        setCurrentUser(null);
-        setUserLevel(null);
-        console.log('Supabase 사용자 정보 없음:', result.error || '인증되지 않음');
-      }
-      setIsLoading(false);
-    };
-
-    fetchUser();
-  }, []);
-
-  if (isLoading) {
+  if (loading) {
     return <div className="flex justify-center items-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>;
@@ -54,26 +34,17 @@ export default function DashboardClient({ locale, translations }: DashboardClien
 
   return (
     <div className="p-6">
-      {/* 환영 카드 */}
-      <div className="bg-[#1A2234] rounded-lg shadow-lg p-6 mb-8">
-        <h2 className="text-2xl font-bold text-white mb-3">{translations.welcome}</h2>
-        <p className="text-gray-300 mb-4">
-          {currentUser?.first_name ? `${currentUser.first_name} ${currentUser.last_name || ''}님, ` : ''} 
-          브릿지메이커스 대시보드에 오신 것을 환영합니다.
-        </p>
-        
-        {userLevel && (
-          <div className="mt-4">
-            <span className="text-sm font-medium text-gray-400">{translations.userLevel}:</span>
-            <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
-              bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md">
-              {userLevel === UserLevel.ADMIN ? translations.admin : 
-                userLevel === UserLevel.PREMIUM ? translations.premium : 
-                translations.basic}
-            </div>
-          </div>
-        )}
-      </div>
+      <h1 className="text-2xl font-bold text-white mb-6">{translations.welcome}</h1>
+      {userProfile && (
+        <div className="bg-[#1a2234] rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-white mb-2">{translations.userLevel}</h2>
+          <p className="text-[#cba967]">
+            {userLevel === UserLevel.ADMIN && translations.admin}
+            {userLevel === UserLevel.PREMIUM && translations.premium}
+            {userLevel === UserLevel.BASIC && translations.basic}
+          </p>
+        </div>
+      )}
       
       {/* 통계 카드 섹션 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

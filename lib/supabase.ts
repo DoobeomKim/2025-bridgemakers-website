@@ -30,4 +30,6 @@ export enum UserLevel {
 // 데이터베이스 테이블 타입 정의
 export type Tables = {
   users: UserProfile;
-}; 
+};
+
+ 

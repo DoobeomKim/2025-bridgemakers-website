@@ -1,4 +1,7 @@
-import { supabase, UserProfile, UserLevel } from './supabase';
+"use client";
+
+import { supabase } from './supabase/client';
+import { UserProfile, UserLevel } from './supabase';
 
 /**
  * 이메일과 비밀번호로 회원가입
@@ -10,30 +13,58 @@ export async function signUp(
   lastName: string
 ) {
   try {
-    // 1. Supabase Auth를 사용해 사용자 생성
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. 이메일 중복 체크
+    const { data: existingUsers, error: emailCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email);
+
+    if (emailCheckError) {
+      throw emailCheckError;
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
+      return {
+        success: false,
+        error: '이미 등록된 이메일 주소입니다.'
+      };
+    }
+
+    // 2. 회원가입 및 이메일 발송
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          email_verified: false,
+          phone_verified: false
+        }
+      },
     });
 
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('사용자 생성 실패');
+    if (signUpError) throw signUpError;
+    if (!authData.user) throw new Error('회원가입 처리 중 오류가 발생했습니다.');
 
-    // 2. 생성된 사용자의 프로필 정보를 users 테이블에 저장
-    const { error: profileError } = await supabase
+    // 3. users 테이블에 사용자 정보 저장
+    const { error: createError } = await supabase
       .from('users')
-      .insert({
-        id: authData.user.id,
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-        profile_image_url: null,
-        user_level: UserLevel.BASIC
-      });
+      .insert([
+        {
+          id: authData.user.id,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+          user_level: UserLevel.BASIC
+        }
+      ]);
 
-    if (profileError) throw profileError;
+    if (createError) throw createError;
 
-    return { success: true, user: authData.user };
+    return {
+      success: true,
+      message: '회원가입이 완료되었습니다. 이메일을 확인해주세요.'
+    };
   } catch (error: any) {
     console.error('회원가입 오류:', error.message);
     return { success: false, error: error.message };
@@ -52,10 +83,98 @@ export async function signIn(email: string, password: string) {
 
     if (error) throw error;
 
-    return { success: true, user: data.user };
+    // 사용자 정보 가져오기
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        first_name,
+        last_name,
+        company_name,
+        profile_image_url,
+        user_level,
+        created_at,
+        updated_at
+      `)
+      .eq('id', data.user.id)
+      .single<DbUser>();
+
+    // 사용자 정보가 없으면 새로 생성
+    if (!userData) {
+      const { data: newUserData, error: createError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: data.user.id,
+            email: data.user.email,
+            first_name: data.user.user_metadata?.first_name || '',
+            last_name: data.user.user_metadata?.last_name || '',
+            user_level: UserLevel.BASIC,
+            company_name: null,
+            profile_image_url: null,
+          },
+        ])
+        .select(`
+          id,
+          email,
+          first_name,
+          last_name,
+          company_name,
+          profile_image_url,
+          user_level,
+          created_at,
+          updated_at
+        `)
+        .single<DbUser>();
+
+      if (createError) {
+        console.error('사용자 정보 생성 오류:', createError);
+        throw createError;
+      }
+
+      const userProfile: UserProfile = {
+        id: newUserData.id,
+        email: newUserData.email,
+        first_name: newUserData.first_name,
+        last_name: newUserData.last_name,
+        company_name: newUserData.company_name,
+        profile_image_url: newUserData.profile_image_url,
+        user_level: newUserData.user_level as UserLevel,
+        created_at: newUserData.created_at,
+        updated_at: newUserData.updated_at
+      };
+
+      return {
+        success: true,
+        user: userProfile
+      };
+    }
+
+    const userProfile: UserProfile = {
+      id: userData.id,
+      email: userData.email,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      company_name: userData.company_name,
+      profile_image_url: userData.profile_image_url,
+      user_level: userData.user_level as UserLevel,
+      created_at: userData.created_at,
+      updated_at: userData.updated_at
+    };
+
+    return { 
+      success: true, 
+      user: userProfile
+    };
   } catch (error: any) {
     console.error('로그인 오류:', error.message);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: error.message === 'Invalid login credentials'
+        ? '이메일 또는 비밀번호가 올바르지 않습니다.'
+        : error.message 
+    };
   }
 }
 
@@ -73,30 +192,83 @@ export async function signOut() {
   }
 }
 
+interface GetCurrentUserResponse {
+  success: boolean;
+  error?: string;
+  user?: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    company_name?: string | null;
+    profile_image_url?: string | null;
+    user_level: UserLevel;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+interface DbUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  company_name: string | null;
+  profile_image_url: string | null;
+  user_level: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * 현재 로그인한 사용자 정보 가져오기
  */
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<GetCurrentUserResponse> {
   try {
-    // 현재 세션 확인
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) throw sessionError;
-    if (!session?.user) return { success: false, user: null };
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (!user) return { success: false, error: '로그인이 필요합니다.' };
 
-    // 사용자 프로필 정보 가져오기
-    const { data: profile, error: profileError } = await supabase
+    // users 테이블에서 사용자 정보 가져오기
+    const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
+      .select(`
+        id,
+        email,
+        first_name,
+        last_name,
+        company_name,
+        profile_image_url,
+        user_level,
+        created_at,
+        updated_at
+      `)
+      .eq('id', user.id)
+      .single<DbUser>();
 
-    if (profileError) throw profileError;
+    if (userError) throw userError;
+    if (!userData) return { success: false, error: '사용자 정보를 찾을 수 없습니다.' };
 
-    return { success: true, user: profile };
+    // 데이터베이스 결과를 UserProfile 타입으로 변환
+    const userProfile: UserProfile = {
+      id: userData.id,
+      email: userData.email,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      company_name: userData.company_name,
+      profile_image_url: userData.profile_image_url,
+      user_level: userData.user_level as UserLevel,
+      created_at: userData.created_at,
+      updated_at: userData.updated_at
+    };
+
+    return { 
+      success: true, 
+      user: userProfile
+    };
   } catch (error: any) {
     console.error('사용자 정보 조회 오류:', error.message);
-    return { success: false, error: error.message, user: null };
+    return { success: false, error: error.message };
   }
 }
 
@@ -241,13 +413,13 @@ export async function changeUserLevel(userId: string, newLevel: UserLevel) {
 export async function resetPassword(email: string) {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
 
     if (error) throw error;
     return { success: true };
   } catch (error: any) {
-    console.error('비밀번호 재설정 이메일 발송 오류:', error.message);
+    console.error('비밀번호 재설정 오류:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -265,6 +437,30 @@ export async function updatePassword(newPassword: string) {
     return { success: true };
   } catch (error: any) {
     console.error('비밀번호 업데이트 오류:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * OAuth 로그인 (Google, Apple)
+ */
+export async function signInWithOAuth(provider: 'google' | 'apple') {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('OAuth 로그인 오류:', error.message);
     return { success: false, error: error.message };
   }
 } 
