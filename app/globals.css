@@ -136,7 +136,7 @@
 }
 
 body {
-  font-family: 'SF Pro Display', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', 'Apple SD Gothic Neo', 'Inter', sans-serif;
 }
 
 .button-primary {

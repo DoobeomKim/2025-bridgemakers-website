@@ -30,8 +30,8 @@ module.exports = {
         'bm-accent': '#cba967',
       },
       fontFamily: {
-        'sf-pro': ['SF Pro Display', 'Inter', 'sans-serif'],
-        'sf-pro-text': ['SF Pro Text', 'Inter', 'sans-serif'],
+        'sf-pro': ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'sans-serif'],
+        'sf-pro-text': ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'sans-serif'],
         'roboto': ['var(--font-roboto)', 'sans-serif'],
       },
       backgroundImage: {
