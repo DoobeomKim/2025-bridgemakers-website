@@ -2,8 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/supabase';
-export type { UserProfile } from './types';
-export { UserLevel } from './types';
+export type { UserProfile, UserLevel } from './types';
 
 // 환경 변수
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
