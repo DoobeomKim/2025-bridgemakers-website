@@ -33,6 +33,7 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearBrowserData: () => void;
+  refreshUserProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -178,17 +179,26 @@ export const AuthProvider = ({
     // 초기 로딩 상태 설정
     setIsLoading(true);
 
-    // 캐시된 프로필 정보 확인
-    if (typeof window !== 'undefined') {
+    // 캐시된 프로필 정보 확인 (초기 세션이 있을 때만)
+    if (typeof window !== 'undefined' && initialSession?.user) {
       const cachedProfile = localStorage.getItem('userProfile');
       if (cachedProfile) {
-        const { data, timestamp, expiresIn } = JSON.parse(cachedProfile);
-        const isExpired = Date.now() - timestamp > expiresIn;
-        
-        if (!isExpired && mounted) {
-          console.log('✅ 캐시된 프로필 정보 사용');
-          setUserProfile(data as UserProfile);
-          setIsLoading(false);
+        try {
+          const { data, timestamp, expiresIn } = JSON.parse(cachedProfile);
+          const isExpired = Date.now() - timestamp > expiresIn;
+          
+          if (!isExpired && mounted && data.id === initialSession.user.id) {
+            console.log('✅ 캐시된 프로필 정보 사용:', data);
+            setUserProfile(data as UserProfile);
+            setIsLoading(false);
+            return; // 캐시 사용 시 초기 로드 스킵
+          } else {
+            console.log('🗑️ 만료되거나 다른 사용자의 캐시 삭제');
+            localStorage.removeItem('userProfile');
+          }
+        } catch (error) {
+          console.error('❌ 캐시 파싱 오류:', error);
+          localStorage.removeItem('userProfile');
         }
       }
     }
@@ -196,28 +206,41 @@ export const AuthProvider = ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, newSession: Session | null) => {
-      console.log('🔄 인증 상태 변경:', event);
+      console.log('🔄 인증 상태 변경:', event, { 
+        hasUser: !!newSession?.user,
+        userId: newSession?.user?.id 
+      });
+      
       if (mounted) {
         setSession(newSession);
         setUser(newSession?.user || null);
         
-        // 특정 이벤트에서만 프로필 동기화
-        if (['SIGNED_IN', 'USER_UPDATED', 'TOKEN_REFRESHED'].includes(event) && newSession?.user) {
-          await loadUserProfile(newSession.user);
-        } else if (!newSession?.user) {
+        // 로그아웃 처리
+        if (!newSession?.user || event === 'SIGNED_OUT') {
+          console.log('🚪 로그아웃 상태 처리');
           setUserProfile(null);
           setIsLoading(false);
           // 로그아웃 시 캐시 삭제
           if (typeof window !== 'undefined') {
             localStorage.removeItem('userProfile');
           }
+          return;
+        }
+        
+        // 로그인 관련 이벤트에서 프로필 로드
+        if (['SIGNED_IN', 'USER_UPDATED', 'TOKEN_REFRESHED'].includes(event)) {
+          console.log('📥 프로필 새로 로드:', event);
+          await loadUserProfile(newSession.user);
         }
       }
     });
 
-    // 초기 사용자 프로필 로드 (캐시가 없거나 만료된 경우)
-    if (initialSession?.user) {
+    // 초기 사용자 프로필 로드 (캐시가 없는 경우만)
+    if (initialSession?.user && mounted) {
+      console.log('🔄 초기 프로필 로드 시작');
       loadUserProfile(initialSession.user);
+    } else if (!initialSession?.user) {
+      setIsLoading(false);
     }
 
     return () => {
@@ -398,39 +421,89 @@ export const AuthProvider = ({
     try {
       console.log('🔄 로그아웃 시도...');
       
-      // 1. Supabase 세션 종료
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('❌ Supabase 로그아웃 실패:', error);
-        throw error;
-      }
-
-      // 2. 상태 초기화
+      // 1. 즉시 상태 초기화 (UI 업데이트 빠르게)
       setUser(null);
       setSession(null);
       setUserProfile(null);
-
-      // 3. 로컬 스토리지 초기화
+      setIsLoading(false);
+      
+      // 2. 로컬 스토리지 및 캐시 즉시 초기화
       if (typeof window !== 'undefined') {
         localStorage.removeItem('userProfile');
         localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('pendingUserData');
+        
+        // 모든 Supabase 관련 localStorage 키 제거
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('supabase') || key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
       }
 
-      // 4. 쿠키 초기화
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i];
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        if (name.includes('supabase') || name.includes('sb-')) {
-          document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+      // 3. 쿠키 초기화
+      if (typeof document !== 'undefined') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i];
+          const eqPos = cookie.indexOf('=');
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          if (name.includes('supabase') || name.includes('sb-')) {
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=' + window.location.hostname;
+          }
         }
       }
 
-      console.log('✅ 로그아웃 성공');
+      // 4. Supabase 세션 종료 (백그라운드에서)
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.warn('⚠️ Supabase 로그아웃 경고:', error);
+          // 에러가 발생해도 로그아웃 프로세스는 계속 진행
+        }
+      } catch (error) {
+        console.warn('⚠️ Supabase 로그아웃 처리 중 오류:', error);
+        // 에러가 발생해도 로그아웃 프로세스는 계속 진행
+      }
+
+      console.log('✅ 로그아웃 상태 초기화 완료');
     } catch (error) {
       console.error('❌ signOut 오류:', error);
+      // 에러가 발생해도 상태는 초기화
+      setUser(null);
+      setSession(null);
+      setUserProfile(null);
+      setIsLoading(false);
       throw error;
+    }
+  };
+
+  // 프로필 새로고침 함수
+  const refreshUserProfile = async () => {
+    try {
+      if (!user) {
+        console.warn('⚠️ 사용자가 로그인되지 않아 프로필을 새로고침할 수 없습니다.');
+        return;
+      }
+
+      console.log('🔄 프로필 새로고침 시작...');
+      
+      // 캐시 삭제
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('userProfile');
+        console.log('🗑️ 프로필 캐시 삭제');
+      }
+      
+      // 새로고침 시작
+      setIsLoading(true);
+      
+      // 프로필 새로 로드
+      await loadUserProfile(user);
+      
+      console.log('✅ 프로필 새로고침 완료');
+    } catch (error) {
+      console.error('❌ 사용자 프로필 새로고침 중 오류:', error);
     }
   };
 
@@ -447,6 +520,7 @@ export const AuthProvider = ({
     resetPassword,
     signOut,
     clearBrowserData,
+    refreshUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -23,7 +23,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
   const [success, setSuccess] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { supabase } = useAuth();
+  const { supabase, refreshUserProfile } = useAuth();
 
   // 모달이 열릴 때 사용자 정보로 폼 초기화
   useEffect(() => {
@@ -223,7 +223,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
       setTimeout(() => {
         onClose();
         // 페이지 새로고침하여 변경사항 반영
-        window.location.reload();
+        refreshUserProfile();
       }, 2000);
       
     } catch (err: any) {
