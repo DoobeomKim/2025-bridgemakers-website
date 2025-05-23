@@ -37,10 +37,7 @@ export default function AuthCallbackContent() {
         if (session?.user && !session.user.email_confirmed_at) {
           console.log('🔄 세션 새로고침 시도...');
           
-          // 세션 새로고침을 위한 지연
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // 세션 새로고침
+          // 세션 새로고침 (지연 제거)
           const { data: refreshedSession } = await supabase.auth.refreshSession();
           if (refreshedSession?.session) {
             console.log('✅ 세션 새로고침 성공');
@@ -138,7 +135,15 @@ export default function AuthCallbackContent() {
   }, [router, searchParams]);
 
   if (!verificationStatus) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0d1526]">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967] mb-4"></div>
+          <p className="text-white text-lg font-medium">이메일 인증 처리 중...</p>
+          <p className="text-gray-400 text-sm mt-2">잠시만 기다려주세요</p>
+        </div>
+      </div>
+    );
   }
 
   return (
