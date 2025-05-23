@@ -6,6 +6,7 @@ import type { SupabaseClient, User, Session } from '@supabase/auth-helpers-nextj
 import type { AuthChangeEvent } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { UserRole } from '@/types/supabase';
+import { getOAuthRedirectURL, getAuthCallbackURL, logEnvironmentInfo, isDevelopment } from '@/lib/utils/url';
 
 export type UserProfile = {
   id: string;
@@ -96,9 +97,34 @@ export const AuthProvider = ({
     }
   };
 
+  // Supabase 연결 테스트 함수
+  const testSupabaseConnection = async () => {
+    try {
+      console.log('🧪 Supabase 연결 테스트 시작...');
+      
+      // 간단한 쿼리로 연결 테스트
+      const { data, error } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (error) {
+        console.error('❌ Supabase 연결 테스트 실패:', error);
+        return false;
+      } else {
+        console.log('✅ Supabase 연결 테스트 성공');
+        return true;
+      }
+    } catch (error) {
+      console.error('❌ Supabase 연결 테스트 중 예외:', error);
+      return false;
+    }
+  };
+
   // 사용자 프로필 로드
   const loadUserProfile = async (authUser: User | null) => {
     if (!authUser) {
+      console.log('🚫 authUser가 null이므로 프로필 로드 중단');
       setUserProfile(null);
       setIsLoading(false);
       return;
@@ -133,16 +159,82 @@ export const AuthProvider = ({
         console.log('✅ 이미 이메일 인증됨');
       }
 
-      // users 테이블에서 프로필 정보 가져오기
-      const { data: profile, error } = await supabase
+      // Supabase 연결 테스트 먼저 실행
+      const isConnected = await testSupabaseConnection();
+      if (!isConnected) {
+        console.error('❌ Supabase 연결 실패로 프로필 로드 중단');
+        setUserProfile(null);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('📊 데이터베이스에서 프로필 조회 시작...');
+      console.log('🔗 Supabase 연결 정보:', {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        authUserId: authUser.id
+      });
+
+      // 타임아웃이 있는 프로미스 생성
+      const queryPromise = supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .single();
 
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout after 10 seconds')), 10000);
+      });
+
+      console.log('⏰ 타임아웃 10초로 데이터베이스 쿼리 실행...');
+
+      // 타임아웃과 함께 쿼리 실행
+      const { data: profile, error } = await Promise.race([
+        queryPromise,
+        timeoutPromise
+      ]).catch((err) => {
+        console.error('❌ 쿼리 실행 중 에러:', err);
+        throw err;
+      }) as any;
+
+      console.log('📊 데이터베이스 조회 결과:', { 
+        hasData: !!profile, 
+        error: error?.message,
+        errorCode: error?.code,
+        errorDetails: error?.details,
+        profileData: profile ? {
+          id: profile.id,
+          email: profile.email,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          company_name: profile.company_name
+        } : null
+      });
+
       if (error) {
-        console.error('❌ 사용자 프로필 로드 실패:', error);
-        throw error;
+        console.error('❌ 사용자 프로필 로드 실패:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // 특정 에러 코드에 따른 처리
+        if (error.code === 'PGRST116') {
+          console.log('👤 사용자 프로필이 존재하지 않음 - 새 프로필 생성 필요');
+          // 여기서 새 프로필 생성 로직을 추가할 수 있음
+        }
+        
+        setUserProfile(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!profile) {
+        console.error('❌ 프로필 데이터가 없음');
+        setUserProfile(null);
+        setIsLoading(false);
+        return;
       }
 
       // 프로필 정보 설정
@@ -151,22 +243,50 @@ export const AuthProvider = ({
         email_confirmed_at: isEmailVerified ? new Date().toISOString() : null
       };
 
-      console.log('✅ 사용자 프로필 로드 성공:', userProfileData);
+      console.log('✅ 사용자 프로필 로드 성공:', {
+        id: userProfileData.id,
+        email: userProfileData.email,
+        first_name: userProfileData.first_name,
+        last_name: userProfileData.last_name,
+        company_name: userProfileData.company_name,
+        profile_image_url: userProfileData.profile_image_url
+      });
       
       // 프로필 정보를 localStorage에 캐싱 (1시간)
       if (typeof window !== 'undefined') {
-        localStorage.setItem('userProfile', JSON.stringify({
-          data: userProfileData,
-          timestamp: Date.now(),
-          expiresIn: 3600000 // 1시간
-        }));
+        try {
+          const cacheData = {
+            data: userProfileData,
+            timestamp: Date.now(),
+            expiresIn: 3600000 // 1시간
+          };
+          localStorage.setItem('userProfile', JSON.stringify(cacheData));
+          console.log('💾 프로필 캐시 저장 완료');
+        } catch (cacheError) {
+          console.warn('⚠️ 프로필 캐시 저장 실패:', cacheError);
+        }
       }
       
       setUserProfile(userProfileData as UserProfile);
-    } catch (error) {
-      console.error('❌ 사용자 프로필 로드 중 오류:', error);
+      console.log('🎯 userProfile 상태 업데이트 완료');
+      
+    } catch (error: any) {
+      console.error('❌ 사용자 프로필 로드 중 치명적 오류:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // 네트워크 에러인지 확인
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        console.error('🌐 네트워크 연결 문제로 보임');
+      } else if (error.message.includes('timeout')) {
+        console.error('⏰ 데이터베이스 쿼리 타임아웃');
+      }
+      
       setUserProfile(null);
     } finally {
+      console.log('🔚 프로필 로드 과정 완료 - isLoading을 false로 설정');
       setIsLoading(false);
     }
   };
@@ -174,7 +294,15 @@ export const AuthProvider = ({
   // 인증 상태 변경 감지
   useEffect(() => {
     let mounted = true;
-    console.log('🚀 AuthProvider 초기화', { initialSession });
+    console.log('🚀 AuthProvider 초기화', { 
+      initialSession: !!initialSession,
+      environment: process.env.NODE_ENV
+    });
+    
+    // 개발환경에서만 상세 환경 정보 로그
+    if (isDevelopment()) {
+      logEnvironmentInfo();
+    }
     
     // 초기 로딩 상태 설정
     setIsLoading(true);
@@ -188,7 +316,11 @@ export const AuthProvider = ({
           const isExpired = Date.now() - timestamp > expiresIn;
           
           if (!isExpired && mounted && data.id === initialSession.user.id) {
-            console.log('✅ 캐시된 프로필 정보 사용:', data);
+            console.log('✅ 캐시된 프로필 정보 사용:', { 
+              userId: data.id, 
+              email: data.email,
+              environment: process.env.NODE_ENV 
+            });
             setUserProfile(data as UserProfile);
             setIsLoading(false);
             return; // 캐시 사용 시 초기 로드 스킵
@@ -208,7 +340,9 @@ export const AuthProvider = ({
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, newSession: Session | null) => {
       console.log('🔄 인증 상태 변경:', event, { 
         hasUser: !!newSession?.user,
-        userId: newSession?.user?.id 
+        userId: newSession?.user?.id,
+        environment: process.env.NODE_ENV,
+        origin: typeof window !== 'undefined' ? window.location.origin : 'server'
       });
       
       if (mounted) {
@@ -252,10 +386,22 @@ export const AuthProvider = ({
   // OAuth 로그인
   const signIn = async (provider: 'google') => {
     try {
+      // 환경 정보 로그 (개발환경에서만)
+      if (isDevelopment()) {
+        logEnvironmentInfo();
+      }
+      
+      const redirectURL = getOAuthRedirectURL();
+      console.log('🔄 OAuth 로그인 시도:', { 
+        provider, 
+        redirectTo: redirectURL,
+        environment: process.env.NODE_ENV 
+      });
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectURL,
         },
       });
 
@@ -333,6 +479,9 @@ export const AuthProvider = ({
     try {
       console.log('🔄 회원가입 시도:', { email, firstName, lastName });
       
+      const callbackURL = getAuthCallbackURL('ko');
+      console.log('📧 회원가입 콜백 URL:', callbackURL);
+      
       // 1. auth.users 테이블에 사용자 생성
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -342,7 +491,7 @@ export const AuthProvider = ({
             first_name: firstName,
             last_name: lastName,
           },
-          emailRedirectTo: `${window.location.origin}/ko/auth/callback`,
+          emailRedirectTo: callbackURL,
         },
       });
 
@@ -381,11 +530,14 @@ export const AuthProvider = ({
     try {
       console.log('🔄 이메일 인증 재전송:', { email });
       
+      const callbackURL = getAuthCallbackURL('ko');
+      console.log('📧 재전송 콜백 URL:', callbackURL);
+      
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/ko/auth/callback`,
+          emailRedirectTo: callbackURL,
         },
       });
 
@@ -402,8 +554,11 @@ export const AuthProvider = ({
   // 비밀번호 재설정
   const resetPassword = async (email: string) => {
     try {
+      const callbackURL = getAuthCallbackURL('ko') + '?reset=true';
+      console.log('🔄 비밀번호 재설정 이메일 전송:', { email, callbackURL });
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/ko/auth/callback?reset=true`,
+        redirectTo: callbackURL,
       });
 
       if (error) {
@@ -441,16 +596,42 @@ export const AuthProvider = ({
         });
       }
 
-      // 3. 쿠키 초기화
+      // 3. 쿠키 초기화 (개선된 버전)
       if (typeof document !== 'undefined') {
         const cookies = document.cookie.split(';');
+        const isSecure = window.location.protocol === 'https:';
+        const domain = window.location.hostname;
+        
+        console.log('🍪 쿠키 삭제 환경:', { isSecure, domain, protocol: window.location.protocol });
+        
         for (let i = 0; i < cookies.length; i++) {
           const cookie = cookies[i];
           const eqPos = cookie.indexOf('=');
           const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          
           if (name.includes('supabase') || name.includes('sb-')) {
-            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=' + window.location.hostname;
+            // 기본 경로로 삭제
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+            
+            // 도메인별 삭제
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${domain}`;
+            
+            // HTTPS 환경에서 secure 쿠키 삭제
+            if (isSecure) {
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;secure`;
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${domain};secure`;
+            }
+            
+            // 서브도메인까지 고려한 삭제
+            if (domain.includes('.')) {
+              const rootDomain = domain.split('.').slice(-2).join('.');
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${rootDomain}`;
+              if (isSecure) {
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${rootDomain};secure`;
+              }
+            }
+            
+            console.log('🍪 쿠키 삭제:', name);
           }
         }
       }

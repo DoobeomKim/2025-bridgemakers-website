@@ -19,8 +19,20 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [initialWaitComplete, setInitialWaitComplete] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // 초기 1초 대기 처리
+  useEffect(() => {
+    console.log('⏰ NewAuthButtons 진입 - 1초 대기 시작...');
+    const timer = setTimeout(() => {
+      console.log('✅ NewAuthButtons 1초 대기 완료 - 인증 체크 시작');
+      setInitialWaitComplete(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // userProfile을 ProfileDropdownMenu가 기대하는 형식으로 변환
   const compatibleUserProfile = userProfile && user ? {
@@ -37,25 +49,70 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
     email_confirmed_at: user.user_metadata?.email_verified ? new Date().toISOString() : null
   } : null;
 
-  // 디버깅용 로그 추가
+  // shouldShowLogin 조건 체크 직전 상태 로그
   useEffect(() => {
-    if (user && userProfile && compatibleUserProfile) {
-      console.log('🔍 NewAuthButtons: 사용자 상태', {
-        auth: {
-          id: user.id,
-          email: user.email,
-          email_verified: user.user_metadata?.email_verified
+    if (initialWaitComplete && !isLoading) {
+      console.log('🔍 NewAuthButtons: shouldShowLogin 계산 직전 상태 체크', {
+        '1️⃣ user 존재': {
+          exists: !!user,
+          userId: user?.id || 'null',
+          email: user?.email || 'null',
+          emailVerified: user?.user_metadata?.email_verified || false
         },
-        profile: {
-          id: userProfile.id,
-          email: userProfile.email,
-          company_name: userProfile.company_name || '없음'
+        '2️⃣ userProfile 존재': {
+          exists: !!userProfile,
+          profileId: userProfile?.id || 'null',
+          email: userProfile?.email || 'null',
+          firstName: userProfile?.first_name || 'null',
+          lastName: userProfile?.last_name || 'null'
+        },
+        '3️⃣ compatibleUserProfile 존재': {
+          exists: !!compatibleUserProfile,
+          createdSuccessfully: !!(userProfile && user),
+          compatibleId: compatibleUserProfile?.id || 'null'
+        },
+        '🎯 최종 결과': {
+          shouldShowLogin: !user || !userProfile || !compatibleUserProfile,
+          조건1_user없음: !user,
+          조건2_userProfile없음: !userProfile,
+          조건3_compatible없음: !compatibleUserProfile
         }
       });
     }
-  }, [user, userProfile, compatibleUserProfile]);
+  }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile]);
+
+  // 디버깅용 로그 추가 (1초 대기 완료 후에만 실행)
+  useEffect(() => {
+    if (initialWaitComplete) {
+      console.log('🔍 NewAuthButtons: 상태 업데이트 (1초 대기 후)', {
+        auth: {
+          hasUser: !!user,
+          userId: user?.id,
+          email: user?.email,
+          email_verified: user?.user_metadata?.email_verified
+        },
+        profile: {
+          hasProfile: !!userProfile,
+          profileId: userProfile?.id,
+          email: userProfile?.email,
+          first_name: userProfile?.first_name,
+          last_name: userProfile?.last_name,
+          company_name: userProfile?.company_name || '없음',
+          profile_image_url: userProfile?.profile_image_url
+        },
+        compatible: {
+          hasCompatible: !!compatibleUserProfile,
+          compatibleId: compatibleUserProfile?.id
+        },
+        isLoading,
+        shouldShowLogin: !user || !userProfile || !compatibleUserProfile,
+        initialWaitComplete
+      });
+    }
+  }, [initialWaitComplete, user, userProfile, compatibleUserProfile, isLoading]);
 
   const handleLoginClick = () => {
+    console.log('🖱️ 로그인 버튼 클릭');
     setIsLoginModalOpen(true);
   };
 
@@ -94,10 +151,12 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (isLoading) {
+  // 1초 대기 중이거나 로딩 중일 때는 아무것도 표시하지 않음
+  if (!initialWaitComplete || isLoading) {
     return null;
   }
 
+  // 1초 대기 완료 후 인증 상태에 따라 UI 표시
   if (!user || !userProfile || !compatibleUserProfile) {
     if (isMobile) {
       return (

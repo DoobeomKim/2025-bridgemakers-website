@@ -1,5 +1,6 @@
 import { Locale } from "../i18n";
 import { headers } from 'next/headers';
+import { getURL } from '@/lib/utils/url';
 
 export interface MenuItem {
   id: string;
@@ -59,10 +60,15 @@ export const DEFAULT_HEADER_MENUS: MenuItem[] = [
 // API를 통해 메뉴 데이터 가져오기
 export const fetchHeaderMenus = async (): Promise<MenuItem[]> => {
   try {
-    const headersList = headers();
-    const host = headersList.get('host') || 'localhost:3000';
-    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
+    // 안전한 URL 생성 - getURL 유틸리티 사용
+    const baseUrl = getURL().replace(/\/$/, ''); // 마지막 슬래시 제거
+    
+    console.log('🔗 메뉴 API 호출:', {
+      baseUrl,
+      apiUrl: `${baseUrl}/api/menus`,
+      NODE_ENV: process.env.NODE_ENV,
+      SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
+    });
     
     const response = await fetch(`${baseUrl}/api/menus`, {
       cache: 'no-store'
@@ -75,9 +81,11 @@ export const fetchHeaderMenus = async (): Promise<MenuItem[]> => {
       return DEFAULT_HEADER_MENUS;
     }
 
+    console.log('✅ 메뉴 데이터 로드 성공:', menus.length, '개');
     return menus;
   } catch (error) {
     console.error('Error fetching header menus:', error);
+    console.log('🔄 기본 메뉴로 대체');
     return DEFAULT_HEADER_MENUS;
   }
 };
