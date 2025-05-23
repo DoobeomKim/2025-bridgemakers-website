@@ -23,7 +23,7 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
   const router = useRouter();
 
   // userProfile을 ProfileDropdownMenu가 기대하는 형식으로 변환
-  const compatibleUserProfile = userProfile ? {
+  const compatibleUserProfile = userProfile && user ? {
     id: userProfile.id,
     email: userProfile.email,
     first_name: userProfile.first_name,
@@ -32,20 +32,28 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
     user_level: userProfile.user_level,
     company_name: userProfile.company_name,
     created_at: userProfile.created_at,
-    updated_at: userProfile.updated_at
+    updated_at: userProfile.updated_at,
+    // 이메일 인증 상태는 user_metadata.email_verified만 사용
+    email_confirmed_at: user.user_metadata?.email_verified ? new Date().toISOString() : null
   } : null;
 
   // 디버깅용 로그 추가
   useEffect(() => {
-    if (userProfile) {
-      console.log('🔍 NewAuthButtons: userProfile 데이터', {
-        id: userProfile.id,
-        email: userProfile.email,
-        company_name: userProfile.company_name || '없음',
-        created_at: userProfile.created_at
+    if (user && userProfile && compatibleUserProfile) {
+      console.log('🔍 NewAuthButtons: 사용자 상태', {
+        auth: {
+          id: user.id,
+          email: user.email,
+          email_verified: user.user_metadata?.email_verified
+        },
+        profile: {
+          id: userProfile.id,
+          email: userProfile.email,
+          company_name: userProfile.company_name || '없음'
+        }
       });
     }
-  }, [userProfile]);
+  }, [user, userProfile, compatibleUserProfile]);
 
   const handleLoginClick = () => {
     setIsLoginModalOpen(true);
@@ -53,11 +61,20 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      console.log('🔄 로그아웃 처리 시작...');
       setIsDropdownOpen(false);
-      router.refresh();
+      
+      // 로그아웃 처리
+      await signOut();
+      console.log('✅ 로그아웃 완료, 홈페이지로 이동...');
+      
+      // 약간의 지연 후 홈페이지로 이동 (상태 업데이트 완료 보장)
+      setTimeout(() => {
+        window.location.href = `/${locale}`;
+      }, 100);
     } catch (error) {
-      console.error('로그아웃 오류:', error);
+      console.error('❌ 로그아웃 오류:', error);
+      alert('로그아웃 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
     }
   };
 

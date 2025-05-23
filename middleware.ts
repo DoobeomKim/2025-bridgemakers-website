@@ -8,6 +8,21 @@ export async function middleware(req: NextRequest) {
   try {
     const res = NextResponse.next()
     
+    // 인증 관련 경로는 허용
+    const isAuthRoute = req.nextUrl.pathname.startsWith('/auth/') || 
+                       req.nextUrl.pathname.includes('/auth/confirm') ||
+                       req.nextUrl.pathname.includes('/auth/callback') ||
+                       req.nextUrl.pathname.includes('/ko/auth/callback');
+                       
+    if (isAuthRoute) {
+      console.log('🔑 인증 경로 허용:', {
+        pathname: req.nextUrl.pathname,
+        search: req.nextUrl.search,
+        hash: req.nextUrl.hash
+      });
+      return res;
+    }
+    
     // 미들웨어 클라이언트 생성
     const supabase = createMiddlewareClient<Database>({ req, res })
     

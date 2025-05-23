@@ -44,6 +44,11 @@ const ProfileDropdownMenu = ({
             <div className="text-[#C7C7CC] text-xs">{user.email}</div>
             <div className="text-[#cba967] text-xs mt-1 flex items-center">
               {user.user_level === UserRole.ADMIN ? '관리자' : '기본 회원'}
+              {user.email_confirmed_at ? (
+                <span className="ml-2 text-[#4CAF50]">✓ 인증됨</span>
+              ) : (
+                <span className="ml-2 text-[#ff6b6b]">미인증</span>
+              )}
             </div>
             {user.company_name && (
               <div className="text-[#C7C7CC] text-xs mt-1">

@@ -33,6 +33,21 @@ const nextConfig = {
       use: ['@svgr/webpack']
     });
     return config;
+  },
+  
+  // 쿠키 사용하는 API 라우트는 정적 생성에서 제외
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store'
+          }
+        ]
+      }
+    ]
   }
 }
 

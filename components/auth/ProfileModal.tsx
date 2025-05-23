@@ -119,10 +119,10 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
     try {
       // 스토리지에 이미지 업로드
       const fileExt = file.name.split('.').pop();
-      const filePath = `profile_images/${userId}/${Math.random()}.${fileExt}`;
+      const filePath = `profile-images/${userId}-${Date.now()}.${fileExt}`;
       
       const { error: uploadError, data } = await supabase.storage
-        .from('avatars')
+        .from('user-assets')
         .upload(filePath, file, { upsert: true });
       
       if (uploadError) {
@@ -132,7 +132,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
       
       // 이미지 URL 가져오기
       const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
+        .from('user-assets')
         .getPublicUrl(filePath);
       
       // 프로필 업데이트
