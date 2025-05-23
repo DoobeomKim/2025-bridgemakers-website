@@ -102,21 +102,27 @@ export const AuthProvider = ({
     try {
       console.log('🧪 Supabase 연결 테스트 시작...');
       
-      // 간단한 쿼리로 연결 테스트
-      const { data, error } = await supabase
-        .from('users')
-        .select('count')
-        .limit(1);
+      // 5초 타임아웃으로 단순한 연결 테스트
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Supabase 연결 테스트 타임아웃 (5초)')), 5000);
+      });
       
-      if (error) {
-        console.error('❌ Supabase 연결 테스트 실패:', error);
-        return false;
-      } else {
-        console.log('✅ Supabase 연결 테스트 성공');
-        return true;
-      }
-    } catch (error) {
-      console.error('❌ Supabase 연결 테스트 중 예외:', error);
+      const connectionPromise = supabase
+        .from('users')
+        .select('id')
+        .limit(1)
+        .single();
+      
+      const result = await Promise.race([connectionPromise, timeoutPromise]);
+      console.log('✅ Supabase 연결 테스트 성공');
+      return true;
+    } catch (error: any) {
+      console.error('❌ Supabase 연결 테스트 실패:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        name: error.name
+      });
       return false;
     }
   };
@@ -159,7 +165,7 @@ export const AuthProvider = ({
         console.log('✅ 이미 이메일 인증됨');
       }
 
-      // Supabase 연결 테스트 먼저 실행
+      // Supabase 연결 상태 확인
       const isConnected = await testSupabaseConnection();
       if (!isConnected) {
         console.error('❌ Supabase 연결 실패로 프로필 로드 중단');

@@ -52,31 +52,31 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
   // shouldShowLogin 조건 체크 직전 상태 로그
   useEffect(() => {
     if (initialWaitComplete && !isLoading) {
-      console.log('🔍 NewAuthButtons: shouldShowLogin 계산 직전 상태 체크', {
-        '1️⃣ user 존재': {
-          exists: !!user,
-          userId: user?.id || 'null',
-          email: user?.email || 'null',
-          emailVerified: user?.user_metadata?.email_verified || false
-        },
-        '2️⃣ userProfile 존재': {
-          exists: !!userProfile,
-          profileId: userProfile?.id || 'null',
-          email: userProfile?.email || 'null',
-          firstName: userProfile?.first_name || 'null',
-          lastName: userProfile?.last_name || 'null'
-        },
-        '3️⃣ compatibleUserProfile 존재': {
-          exists: !!compatibleUserProfile,
-          createdSuccessfully: !!(userProfile && user),
-          compatibleId: compatibleUserProfile?.id || 'null'
-        },
-        '🎯 최종 결과': {
-          shouldShowLogin: !user || !userProfile || !compatibleUserProfile,
-          조건1_user없음: !user,
-          조건2_userProfile없음: !userProfile,
-          조건3_compatible없음: !compatibleUserProfile
-        }
+      console.log('🔍 NewAuthButtons: shouldShowLogin 계산 직전 상태 체크');
+      console.log('1️⃣ user 존재:', {
+        exists: !!user,
+        userId: user?.id || 'null',
+        email: user?.email || 'null',
+        emailVerified: user?.user_metadata?.email_verified || false
+      });
+      console.log('2️⃣ userProfile 존재:', {
+        exists: !!userProfile,
+        profileId: userProfile?.id || 'null',
+        email: userProfile?.email || 'null',
+        firstName: userProfile?.first_name || 'null',
+        lastName: userProfile?.last_name || 'null'
+      });
+      console.log('3️⃣ compatibleUserProfile 존재:', {
+        exists: !!compatibleUserProfile,
+        createdSuccessfully: !!(userProfile && user),
+        compatibleId: compatibleUserProfile?.id || 'null'
+      });
+      console.log('🎯 최종 결과:', {
+        shouldShowLogin: !user || !userProfile || !compatibleUserProfile,
+        조건1_user없음: !user,
+        조건2_userProfile없음: !userProfile,
+        조건3_compatible없음: !compatibleUserProfile,
+        실제표시할내용: (!user || !userProfile || !compatibleUserProfile) ? '로그인버튼' : '프로필'
       });
     }
   }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile]);
