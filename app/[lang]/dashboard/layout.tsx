@@ -37,11 +37,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
   // 초기 1초 대기 처리
   useEffect(() => {
-    console.log('⏰ 대시보드 진입 - 3초 대기 시작 (안정적인 인증 체크를 위해)...');
+    console.log('⏰ 대시보드 진입 - 2초 대기 시작 (안정적인 인증 체크를 위해)...');
     const timer = setTimeout(() => {
-      console.log('✅ 3초 대기 완료 - 인증 체크 시작');
+      console.log('✅ 2초 대기 완료 - 인증 체크 시작');
       setInitialWaitComplete(true);
-    }, 3000); // 1초 → 3초로 증가
+    }, 2000); // 1초 → 2초로 변경
 
     return () => clearTimeout(timer);
   }, []);
@@ -63,10 +63,10 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     }
   }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile]);
 
-  // 인증되지 않은 사용자는 홈페이지로 리다이렉트 (3초 대기 후)
+  // 인증되지 않은 사용자는 홈페이지로 리다이렉트 (2초 대기 후)
   useEffect(() => {
     const redirectUnauthorized = async () => {
-      // 초기 3초 대기가 완료되지 않았으면 대기
+      // 초기 2초 대기가 완료되지 않았으면 대기
       if (!initialWaitComplete) {
         return;
       }
@@ -101,13 +101,13 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     redirectUnauthorized();
   }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile, locale, router]);
 
-  // 초기 3초 대기 중일 때 로딩 화면 표시
+  // 초기 2초 대기 중일 때 로딩 화면 표시
   if (!initialWaitComplete) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0d1526]">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967] mb-4"></div>
-          <p className="text-white text-sm">대시보드 준비 중... (안정적인 로딩을 위해 잠시 대기)</p>
+          <p className="text-white text-sm">대시보드 준비 중...</p>
         </div>
       </div>
     );
