@@ -97,43 +97,69 @@ export const AuthProvider = ({
     }
   };
 
-  // Supabase 연결 테스트 함수
-  const testSupabaseConnection = async () => {
-    try {
-      console.log('🧪 Supabase 연결 테스트 시작...');
-      
-      // 5초 타임아웃으로 단순한 연결 테스트
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Supabase 연결 테스트 타임아웃 (5초)')), 5000);
-      });
-      
-      const connectionPromise = supabase
-        .from('users')
-        .select('id')
-        .limit(1)
-        .single();
-      
-      const result = await Promise.race([connectionPromise, timeoutPromise]);
-      console.log('✅ Supabase 연결 테스트 성공');
-      return true;
-    } catch (error: any) {
-      console.error('❌ Supabase 연결 테스트 실패:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        name: error.name
-      });
-      return false;
-    }
-  };
-
   // 사용자 프로필 로드
-  const loadUserProfile = async (authUser: User | null) => {
+  const loadUserProfile = async (authUser: User | null, forceReload: boolean = false) => {
     if (!authUser) {
       console.log('🚫 authUser가 null이므로 프로필 로드 중단');
       setUserProfile(null);
       setIsLoading(false);
       return;
+    }
+
+    // ✅ 강제 새로고침이 아닐 때만 중복 검사
+    if (!forceReload && userProfile && userProfile.id === authUser.id) {
+      console.log('✅ 이미 같은 사용자의 프로필이 로드되어 있음 - DB 쿼리 건너뛰기:', {
+        userId: authUser.id,
+        profileId: userProfile.id,
+        email: userProfile.email
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // 🔧 캐시 우선 체크 - 캐시가 있으면 DB 쿼리 완전 스킵
+    if (!forceReload && typeof window !== 'undefined') {
+      const cachedProfile = localStorage.getItem('userProfile');
+      if (cachedProfile) {
+        try {
+          const { data, timestamp, expiresIn } = JSON.parse(cachedProfile);
+          const isExpired = Date.now() - timestamp > expiresIn;
+          
+          if (!isExpired && data.id === authUser.id) {
+            console.log('🎯 캐시된 프로필 발견 - DB 쿼리 완전 스킵:', { 
+              userId: data.id, 
+              email: data.email,
+              firstName: data.first_name,
+              lastName: data.last_name,
+              cacheAge: Math.round((Date.now() - timestamp) / 1000) + '초',
+              source: 'localStorage_cache'
+            });
+            
+            // 이메일 인증 상태는 user_metadata.email_verified만 사용
+            const isEmailVerified = authUser.user_metadata?.email_verified || false;
+            const userProfileData = {
+              ...data,
+              email_confirmed_at: isEmailVerified ? new Date().toISOString() : null
+            };
+            
+            setUserProfile(userProfileData as UserProfile);
+            setIsLoading(false);
+            return; // 🎯 여기서 완전히 종료 - DB 쿼리 없음
+          } else {
+            console.log('🗑️ 캐시 만료 또는 다른 사용자 - 캐시 삭제 후 DB에서 새로 로드');
+            localStorage.removeItem('userProfile');
+          }
+        } catch (error) {
+          console.error('❌ 캐시 파싱 오류:', error);
+          localStorage.removeItem('userProfile');
+        }
+      }
+    }
+
+    if (forceReload) {
+      console.log('🔥 강제 새로고침 모드 - 캐시 무시하고 DB에서 직접 로드');
+    } else {
+      console.log('💾 캐시 없음 - DB에서 새로 로드 후 캐시 생성');
     }
 
     try {
@@ -165,15 +191,6 @@ export const AuthProvider = ({
         console.log('✅ 이미 이메일 인증됨');
       }
 
-      // Supabase 연결 상태 확인
-      const isConnected = await testSupabaseConnection();
-      if (!isConnected) {
-        console.error('❌ Supabase 연결 실패로 프로필 로드 중단');
-        setUserProfile(null);
-        setIsLoading(false);
-        return;
-      }
-
       console.log('📊 데이터베이스에서 프로필 조회 시작...');
       console.log('🔗 Supabase 연결 정보:', {
         url: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -181,18 +198,19 @@ export const AuthProvider = ({
         authUserId: authUser.id
       });
 
-      // 타임아웃이 있는 프로미스 생성
+      // 연결 테스트 제거 - 직접 프로필 쿼리 시도
+      // 타임아웃을 15초로 늘리고 더 안전한 쿼리 사용
       const queryPromise = supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle(); // single() 대신 maybeSingle() 사용 (더 안전)
 
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Database query timeout after 15 seconds')), 15000);
       });
 
-      console.log('⏰ 타임아웃 10초로 데이터베이스 쿼리 실행...');
+      console.log('⏰ 타임아웃 15초로 데이터베이스 쿼리 실행...');
 
       // 타임아웃과 함께 쿼리 실행
       const { data: profile, error } = await Promise.race([
@@ -231,15 +249,14 @@ export const AuthProvider = ({
           // 여기서 새 프로필 생성 로직을 추가할 수 있음
         }
         
+        // 에러가 발생해도 재시도 가능하도록 isLoading은 여기서 false로 설정하지 않음
+        console.log('⚠️ 프로필 로드 실패 - 하지만 재시도 가능하도록 유지');
         setUserProfile(null);
-        setIsLoading(false);
-        return;
       }
 
       if (!profile) {
         console.error('❌ 프로필 데이터가 없음');
         setUserProfile(null);
-        setIsLoading(false);
         return;
       }
 
@@ -258,16 +275,20 @@ export const AuthProvider = ({
         profile_image_url: userProfileData.profile_image_url
       });
       
-      // 프로필 정보를 localStorage에 캐싱 (1시간)
+      // 프로필 정보를 localStorage에 캐싱 (세션 기간 동안 유지)
       if (typeof window !== 'undefined') {
         try {
           const cacheData = {
             data: userProfileData,
             timestamp: Date.now(),
-            expiresIn: 3600000 // 1시간
+            expiresIn: 24 * 60 * 60 * 1000, // 24시간 (세션보다 길게)
+            sessionId: authUser.id // 세션 연동
           };
           localStorage.setItem('userProfile', JSON.stringify(cacheData));
-          console.log('💾 프로필 캐시 저장 완료');
+          console.log('💾 프로필 캐시 저장 완료 (24시간 유지):', {
+            userId: userProfileData.id,
+            cacheExpiry: new Date(Date.now() + cacheData.expiresIn).toLocaleString()
+          });
         } catch (cacheError) {
           console.warn('⚠️ 프로필 캐시 저장 실패:', cacheError);
         }
@@ -290,6 +311,8 @@ export const AuthProvider = ({
         console.error('⏰ 데이터베이스 쿼리 타임아웃');
       }
       
+      // 치명적 오류 시에도 재시도 가능하도록 상태 설정
+      console.log('💔 치명적 오류 발생 - 하지만 사용자가 새로고침하면 재시도 가능');
       setUserProfile(null);
     } finally {
       console.log('🔚 프로필 로드 과정 완료 - isLoading을 false로 설정');
@@ -313,7 +336,7 @@ export const AuthProvider = ({
     // 초기 로딩 상태 설정
     setIsLoading(true);
 
-    // 캐시된 프로필 정보 확인 (초기 세션이 있을 때만)
+    // 🔧 개선된 캐시 확인 로직
     if (typeof window !== 'undefined' && initialSession?.user) {
       const cachedProfile = localStorage.getItem('userProfile');
       if (cachedProfile) {
@@ -322,22 +345,27 @@ export const AuthProvider = ({
           const isExpired = Date.now() - timestamp > expiresIn;
           
           if (!isExpired && mounted && data.id === initialSession.user.id) {
-            console.log('✅ 캐시된 프로필 정보 사용:', { 
+            console.log('✅ 캐시된 프로필 정보 사용 (세션처럼 활용):', { 
               userId: data.id, 
               email: data.email,
+              firstName: data.first_name,
+              lastName: data.last_name,
+              cacheAge: Math.round((Date.now() - timestamp) / 1000) + '초',
               environment: process.env.NODE_ENV 
             });
             setUserProfile(data as UserProfile);
             setIsLoading(false);
-            return; // 캐시 사용 시 초기 로드 스킵
+            return; // 캐시 사용 시 DB 쿼리 완전 스킵
           } else {
-            console.log('🗑️ 만료되거나 다른 사용자의 캐시 삭제');
+            console.log('🗑️ 캐시 만료 또는 다른 사용자 - 캐시 삭제 후 새로 로드');
             localStorage.removeItem('userProfile');
           }
         } catch (error) {
           console.error('❌ 캐시 파싱 오류:', error);
           localStorage.removeItem('userProfile');
         }
+      } else {
+        console.log('📭 캐시된 프로필 정보 없음 - DB에서 새로 로드 필요');
       }
     }
     
@@ -370,6 +398,45 @@ export const AuthProvider = ({
         // 로그인 관련 이벤트에서 프로필 로드
         if (['SIGNED_IN', 'USER_UPDATED', 'TOKEN_REFRESHED'].includes(event)) {
           console.log('📥 프로필 새로 로드:', event);
+          
+          // 🎯 TOKEN_REFRESHED나 USER_UPDATED 시에도 캐시 우선 체크
+          if ((event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && typeof window !== 'undefined') {
+            const cachedProfile = localStorage.getItem('userProfile');
+            if (cachedProfile) {
+              try {
+                const { data, timestamp, expiresIn } = JSON.parse(cachedProfile);
+                const isExpired = Date.now() - timestamp > expiresIn;
+                
+                if (!isExpired && data.id === newSession.user.id) {
+                  console.log('🎯 ' + event + ' - 캐시 활용으로 DB 쿼리 스킵:', {
+                    userId: data.id,
+                    event: event,
+                    cacheAge: Math.round((Date.now() - timestamp) / 1000) + '초'
+                  });
+                  
+                  // 이메일 인증 상태는 user_metadata.email_verified만 사용
+                  const isEmailVerified = newSession.user.user_metadata?.email_verified || false;
+                  const userProfileData = {
+                    ...data,
+                    email_confirmed_at: isEmailVerified ? new Date().toISOString() : null
+                  };
+                  
+                  setUserProfile(userProfileData as UserProfile);
+                  setIsLoading(false);
+                  return; // 캐시 사용으로 DB 쿼리 스킵
+                } else {
+                  console.log('🗑️ ' + event + ' - 캐시 만료 또는 다른 사용자');
+                  localStorage.removeItem('userProfile');
+                }
+              } catch (error) {
+                console.error('❌ ' + event + ' - 캐시 파싱 오류:', error);
+                localStorage.removeItem('userProfile');
+              }
+            }
+          }
+          
+          // 캐시가 없거나 SIGNED_IN인 경우에만 DB에서 로드
+          console.log('📡 ' + event + ' - DB에서 프로필 로드 실행');
           await loadUserProfile(newSession.user);
         }
       }
@@ -666,7 +733,7 @@ export const AuthProvider = ({
     }
   };
 
-  // 프로필 새로고침 함수
+  // 프로필 새로고침 함수 (프로필 수정 후 호출)
   const refreshUserProfile = async () => {
     try {
       if (!user) {
@@ -674,23 +741,28 @@ export const AuthProvider = ({
         return;
       }
 
-      console.log('🔄 프로필 새로고침 시작...');
+      console.log('🔄 프로필 새로고침 시작 (캐시 무효화 포함)...');
       
-      // 캐시 삭제
+      // 1. 캐시 즉시 삭제 (중요!)
       if (typeof window !== 'undefined') {
         localStorage.removeItem('userProfile');
-        console.log('🗑️ 프로필 캐시 삭제');
+        console.log('🗑️ 기존 프로필 캐시 삭제 완료');
       }
       
-      // 새로고침 시작
+      // 2. 현재 프로필 상태 초기화
+      setUserProfile(null);
+      
+      // 3. 새로고침 시작
       setIsLoading(true);
       
-      // 프로필 새로 로드
-      await loadUserProfile(user);
+      // 4. DB에서 최신 프로필 강제 로드
+      console.log('📡 DB에서 최신 프로필 강제 로드...');
+      await loadUserProfile(user, true);
       
-      console.log('✅ 프로필 새로고침 완료');
+      console.log('✅ 프로필 새로고침 완료 (캐시도 새로 생성됨)');
     } catch (error) {
       console.error('❌ 사용자 프로필 새로고침 중 오류:', error);
+      setIsLoading(false);
     }
   };
 

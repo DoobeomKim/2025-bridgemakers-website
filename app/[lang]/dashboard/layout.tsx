@@ -37,11 +37,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
   // 초기 1초 대기 처리
   useEffect(() => {
-    console.log('⏰ 대시보드 진입 - 1초 대기 시작...');
+    console.log('⏰ 대시보드 진입 - 3초 대기 시작 (안정적인 인증 체크를 위해)...');
     const timer = setTimeout(() => {
-      console.log('✅ 1초 대기 완료 - 인증 체크 시작');
+      console.log('✅ 3초 대기 완료 - 인증 체크 시작');
       setInitialWaitComplete(true);
-    }, 1000);
+    }, 3000); // 1초 → 3초로 증가
 
     return () => clearTimeout(timer);
   }, []);
@@ -63,10 +63,10 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     }
   }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile]);
 
-  // 인증되지 않은 사용자는 홈페이지로 리다이렉트 (1초 대기 후)
+  // 인증되지 않은 사용자는 홈페이지로 리다이렉트 (3초 대기 후)
   useEffect(() => {
     const redirectUnauthorized = async () => {
-      // 초기 1초 대기가 완료되지 않았으면 대기
+      // 초기 3초 대기가 완료되지 않았으면 대기
       if (!initialWaitComplete) {
         return;
       }
@@ -77,15 +77,21 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
         return;
       }
       
-      // 사용자, 프로필, 또는 호환 프로필이 없으면 리다이렉트 (메인페이지와 동일한 조건)
-      if (!user || !userProfile || !compatibleUserProfile) {
-        console.log('🚫 인증되지 않은 사용자 - 홈페이지로 리다이렉트', {
+      // 더 안전한 조건: user가 명확히 null이고 로딩도 완료된 경우만 리다이렉트
+      if (!user) {
+        console.log('🚫 사용자 정보 없음 - 홈페이지로 리다이렉트');
+        router.push(`/${locale}`);
+        return;
+      }
+
+      // userProfile이 없지만 user는 있는 경우, 더 기다려보기
+      if (!userProfile || !compatibleUserProfile) {
+        console.log('⚠️ 프로필 로딩 중이거나 실패 - 추가 대기 중...', {
           hasUser: !!user,
           hasUserProfile: !!userProfile,
-          hasCompatibleProfile: !!compatibleUserProfile,
-          redirectTo: `/${locale}`
+          hasCompatibleProfile: !!compatibleUserProfile
         });
-        router.push(`/${locale}`);
+        // 이 경우에는 리다이렉트하지 않고 더 기다림
         return;
       }
       
@@ -95,13 +101,13 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     redirectUnauthorized();
   }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile, locale, router]);
 
-  // 초기 1초 대기 중일 때 로딩 화면 표시
+  // 초기 3초 대기 중일 때 로딩 화면 표시
   if (!initialWaitComplete) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0d1526]">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967] mb-4"></div>
-          <p className="text-white text-sm">대시보드 준비 중...</p>
+          <p className="text-white text-sm">대시보드 준비 중... (안정적인 로딩을 위해 잠시 대기)</p>
         </div>
       </div>
     );
