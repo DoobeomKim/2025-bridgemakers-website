@@ -1,0 +1,596 @@
+{
+  "privacy": {
+    "title": "Privacy Policy",
+    "description": "Check Bridgemakers' privacy policy.",
+    "lastUpdated": "Last Updated",
+    "introduction": "Bridgemakers (hereinafter 'Company') has established the following processing policy to protect users' personal information and rights in accordance with the Personal Information Protection Act and to smoothly handle users' grievances related to personal information. The Company will notify any amendments to this privacy policy through website announcements (or individual notices).",
+    "sections": {
+      "overview": {
+        "title": "1. Purpose of Processing Personal Information",
+        "content": "The Company processes personal information for the following purposes. The personal information being processed will not be used for purposes other than the following, and if the purpose of use changes, necessary measures such as obtaining separate consent will be implemented in accordance with Article 18 of the Personal Information Protection Act.",
+        "purposes": [
+          "Website membership registration and management",
+          "Service provision and contract fulfillment",
+          "Customer consultation and support services",
+          "Marketing and advertising utilization",
+          "Service improvement and new service development",
+          "Legal obligation fulfillment and dispute resolution"
+        ]
+      },
+      "collection": {
+        "title": "2. Collection and Use of Personal Information",
+        "content": "The Company collects the following personal information:",
+        "categories": {
+          "required": {
+            "title": "Required Items",
+            "items": [
+              "Name, email address, phone number",
+              "Company name, position, work field",
+              "Service usage records, access logs, cookies",
+              "Payment information (credit card info, account info, etc.)"
+            ]
+          },
+          "optional": {
+            "title": "Optional Items",
+            "items": [
+              "Date of birth, gender",
+              "Address, areas of interest",
+              "Marketing consent status"
+            ]
+          },
+          "automatic": {
+            "title": "Automatically Collected Information",
+            "items": [
+              "IP address, cookies, visit time",
+              "Service usage records, access frequency",
+              "Device information (OS, browser type, etc.)",
+              "Location information (when using services)"
+            ]
+          }
+        },
+        "methods": {
+          "title": "Personal Information Collection Methods",
+          "items": [
+            "Website membership registration and service usage process",
+            "Customer service consultation process",
+            "Event and promotion participation",
+            "Provision from partners",
+            "Collection through generated information collection tools"
+          ]
+        }
+      },
+      "retention": {
+        "title": "3. Retention and Use Period of Personal Information",
+        "content": "The Company processes and retains personal information within the retention and use period prescribed by law or the retention and use period agreed upon when collecting personal information from data subjects.",
+        "periods": {
+          "service": {
+            "title": "Service Usage Related",
+            "period": "Until membership withdrawal",
+            "note": "However, if investigation or inquiry for violation of related laws is in progress, until the completion of such investigation or inquiry"
+          },
+          "legal": {
+            "title": "Legal Retention",
+            "items": [
+              "Records on contracts or withdrawal of offers: 5 years (E-Commerce Act)",
+              "Records on payment and supply of goods: 5 years (E-Commerce Act)",
+              "Records on consumer complaints or dispute handling: 3 years (E-Commerce Act)",
+              "Website visit records: 3 months (Protection of Communications Secrets Act)"
+            ]
+          }
+        }
+      },
+      "rights": {
+        "title": "4. Rights and Obligations of Data Subjects and Exercise Methods",
+        "content": "Users can exercise the following rights as personal information subjects:",
+        "items": [
+          "Request for notification of personal information processing status",
+          "Request for access to personal information",
+          "Request for correction and deletion of personal information",
+          "Request for suspension of personal information processing"
+        ],
+        "exercise": {
+          "title": "Methods of Exercising Rights",
+          "content": "The exercise of the above rights can be done through written documents, email, fax, etc. in accordance with Article 41, Paragraph 1 of the Enforcement Decree of the Personal Information Protection Act, and the Company will take action without delay.",
+          "methods": [
+            "Email: privacy@bridgemakers.co.kr",
+            "Phone: +49-69-1234-5678",
+            "Mail: Bockenheimer Landstraße 123, 60325 Frankfurt am Main, Germany, Bridgemakers"
+          ]
+        }
+      },
+      "thirdParty": {
+        "title": "5. Provision of Personal Information to Third Parties",
+        "content": "The Company does not provide users' personal information to external parties in principle. However, exceptions are made in the following cases:",
+        "exceptions": [
+          "When users have given prior consent",
+          "When required by law or when there is a request from investigative agencies according to procedures and methods prescribed by law for investigation purposes",
+          "When necessary for service provision (payment processing, delivery, etc.)"
+        ],
+        "partners": {
+          "title": "Third Party Provision Status",
+          "items": [
+            {
+              "recipient": "Payment Gateway",
+              "purpose": "Payment processing and settlement",
+              "items": "Name, contact information, payment information",
+              "retention": "5 years after payment completion"
+            },
+            {
+              "recipient": "Delivery Company",
+              "purpose": "Product delivery",
+              "items": "Name, contact information, address",
+              "retention": "1 year after delivery completion"
+            }
+          ]
+        }
+      },
+      "processing": {
+        "title": "6. Consignment of Personal Information Processing",
+        "content": "The Company consigns personal information processing tasks as follows for smooth personal information processing:",
+        "outsourcing": [
+          {
+            "company": "AWS (Amazon Web Services)",
+            "tasks": "Cloud server operation and data storage",
+            "period": "Until termination of consignment contract"
+          },
+          {
+            "company": "Google Analytics",
+            "tasks": "Website usage statistics analysis",
+            "period": "Until termination of consignment contract"
+          },
+          {
+            "company": "Email Service Provider",
+            "tasks": "Marketing email delivery",
+            "period": "Until termination of consignment contract"
+          }
+        ]
+      },
+      "security": {
+        "title": "7. Measures to Ensure Safety of Personal Information",
+        "content": "The Company implements the following technical, administrative, and physical measures necessary to ensure safety in accordance with Article 29 of the Personal Information Protection Act:",
+        "measures": {
+          "technical": {
+            "title": "Technical Measures",
+            "items": [
+              "Access control management for personal information processing systems",
+              "Installation of access control systems",
+              "Encryption of unique identification information",
+              "Installation and update of security programs",
+              "Storage and forgery prevention measures for personal information processing system access records"
+            ]
+          },
+          "administrative": {
+            "title": "Administrative Measures",
+            "items": [
+              "Establishment and implementation of internal management plans",
+              "Regular employee training",
+              "Minimization and training of personal information handlers",
+              "Security agreements when outsourcing to external companies"
+            ]
+          },
+          "physical": {
+            "title": "Physical Measures",
+            "items": [
+              "Access control to computer rooms and data storage rooms",
+              "Use of locking devices for documents and auxiliary storage media containing personal information"
+            ]
+          }
+        }
+      },
+      "cookies": {
+        "title": "8. Operation and Rejection of Cookies",
+        "content": "The Company uses 'cookies' that store and retrieve usage information to provide individualized customized services to users.",
+        "definition": "Cookies are small pieces of information sent by the server (http) used to operate the website to the user's computer browser and may be stored on the user's PC hard disk.",
+        "purpose": [
+          "Analysis of users' access frequency and visit time",
+          "Understanding users' preferences and interests",
+          "Tracking, participation in various events, and visit count analysis"
+        ],
+        "rejection": {
+          "title": "Cookie Setting Rejection Methods",
+          "content": "Users have the right to choose cookie installation. Therefore, by setting options in the web browser, you can allow all cookies, go through confirmation each time cookies are stored, or reject the storage of all cookies.",
+          "methods": [
+            "Internet Explorer: Tools > Internet Options > Privacy",
+            "Chrome: Settings > Advanced Settings > Privacy and Security > Content Settings > Cookies",
+            "Firefox: Options > Privacy and Security > Cookies and Site Data"
+          ]
+        }
+      },
+      "minors": {
+        "title": "9. Processing of Personal Information of Children Under 14",
+        "content": "The Company does not process personal information of children under 14. If it becomes necessary to process personal information of children under 14, it will be processed with the consent of legal representatives.",
+        "procedures": [
+          "Collection of minimal information such as legal representative's name and contact information",
+          "Implementation of legal representative consent verification procedures",
+          "Immediate destruction of relevant personal information upon request for consent withdrawal by legal representative"
+        ]
+      },
+      "contact": {
+        "title": "10. Personal Information Protection Officer",
+        "content": "The Company designates a personal information protection officer as follows to take overall responsibility for personal information processing and to handle complaints and remedy damages related to personal information processing:",
+        "officer": {
+          "title": "Personal Information Protection Officer",
+          "name": "Kim Chul-soo",
+          "position": "Development Team Leader",
+          "email": "privacy@bridgemakers.co.kr",
+          "phone": "+49-69-1234-5678"
+        },
+        "department": {
+          "title": "Personal Information Protection Department",
+          "name": "Development Team",
+          "email": "privacy@bridgemakers.co.kr",
+          "phone": "+49-69-1234-5678"
+        },
+        "complaint": {
+          "title": "Other Personal Information Violation Reports",
+          "content": "If you wish to make a personal information access request under Article 35 of the Personal Information Protection Act, you can apply through the 'Personal Information Protection Comprehensive Support Portal (www.privacy.go.kr)'.",
+          "agencies": [
+            "Personal Information Protection Commission: privacy.go.kr / 182 (toll-free)",
+            "Personal Information Violation Report Center: privacy.go.kr / 182 (toll-free)",
+            "Supreme Prosecutors' Office Cyber Crime Investigation Unit: www.spo.go.kr / +82-2-3480-3573",
+            "National Police Agency Cyber Terror Response Center: www.netan.go.kr / 182 (toll-free)"
+          ]
+        }
+      },
+      "changes": {
+        "title": "11. Changes to Privacy Policy",
+        "content": "This privacy policy is effective from the implementation date, and if there are additions, deletions, and corrections of changes according to laws and policies, it will be announced through announcements 7 days before the implementation of changes.",
+        "notification": [
+          "Posting on website announcements when there are changes",
+          "Email or individual notification for important changes",
+          "Amended privacy policy takes effect from the date of posting"
+        ]
+      },
+      "international": {
+        "title": "12. International Transfer of Personal Information",
+        "content": "The Company may transfer some personal information overseas for service provision.",
+        "transfers": [
+          {
+            "country": "United States",
+            "recipient": "Amazon Web Services (AWS)",
+            "purpose": "Cloud server operation and data storage",
+            "items": "Service usage records, log data",
+            "safeguards": "Adequacy decision country, standard contractual clauses"
+          },
+          {
+            "country": "United States",
+            "recipient": "Google LLC",
+            "purpose": "Website analysis and marketing",
+            "items": "Website usage statistics, cookie information",
+            "safeguards": "Adequacy decision country, Privacy Shield certification"
+          }
+        ]
+      }
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "description": "Check Bridgemakers' terms of service.",
+    "lastUpdated": "Last Updated",
+    "introduction": "These terms of service govern your use of the website and services provided by Bridgemakers (hereinafter 'Company'). These terms define the rights, obligations, and responsibilities between the Company and users, and by using our services, you agree to be bound by these terms. Please read these terms carefully before continuing to use our services.",
+    "sections": {
+      "purpose": {
+        "title": "Article 1 (Purpose)",
+        "content": "These terms aim to stipulate the conditions and procedures for using the website (https://bridgemakers.co.kr) and related services provided by Bridgemakers (hereinafter 'Company'), rights, obligations, and responsibilities of the Company and users, and other necessary matters."
+      },
+      "definitions": {
+        "title": "Article 2 (Definitions)",
+        "content": "The definitions of terms used in these terms are as follows:",
+        "items": [
+          "'Service' means web development, design, mobile application development, digital marketing solutions, and all related services provided by the Company.",
+          "'User' means members and non-members who access the Company's website and receive services provided by the Company according to these terms.",
+          "'Member' means a person who has registered as a member by providing personal information to the Company, continuously receives information from the Company, and can continuously use services provided by the Company.",
+          "'Content' means information, text, software, music, sound, photos, graphics, videos, messages, and other materials provided by the Company in the service.",
+          "'Intellectual Property Rights' means all rights related to intellectual property including copyright, patent rights, trademark rights, design rights, and trade secrets."
+        ]
+      },
+      "acceptance": {
+        "title": "Article 3 (Effectiveness and Amendment of Terms)",
+        "content": "These terms become effective by posting them on the service screen or notifying users by other means.",
+        "items": [
+          "The Company may change these terms when deemed necessary, and the changed terms become effective by notification or notice in the same manner as paragraph 1.",
+          "If a user does not agree to the changed terms, the user may discontinue service use and cancel membership registration.",
+          "If a user continues to use the service after the changed terms are announced, it is deemed that the user has agreed to the changed terms."
+        ]
+      },
+      "service": {
+        "title": "Article 4 (Provision and Change of Services)",
+        "content": "The Company provides the following services:",
+        "items": [
+          "Website and web application development services",
+          "UI/UX design and branding services",
+          "Mobile application development services",
+          "Digital marketing and SEO optimization services",
+          "Cloud infrastructure construction and management services",
+          "Technical consulting and education services",
+          "Other IT-related services determined by the Company"
+        ],
+        "changes": {
+          "title": "Service Changes and Suspension",
+          "content": "The Company may change or suspend all or part of the services being provided according to operational and technical needs.",
+          "items": [
+            "When there are changes to service content, usage methods, or usage hours, the reason for change, content of the service to be changed, and provision date must be posted on the initial screen of the service before the change.",
+            "The Company may modify, suspend, or change part or all of free services according to company policy and operational needs, and will not provide separate compensation to users unless specifically provided by related laws."
+          ]
+        }
+      },
+      "membership": {
+        "title": "Article 5 (Membership Registration)",
+        "content": "Membership registration is concluded when a user agrees to the terms and applies for membership registration, and the Company approves such application.",
+        "items": [
+          "Those who wish to register as members apply for membership by filling in member information according to the registration form set by the Company and expressing their intention to agree to these terms.",
+          "The Company registers as members those who apply for membership as in paragraph 1, unless they fall under any of the following:",
+          "When the applicant has previously lost membership qualification under these terms",
+          "When there are false statements, omissions, or errors in the registration content",
+          "When it is judged that registering as a member would cause significant technical difficulties for the Company"
+        ]
+      },
+      "obligations": {
+        "title": "Article 6 (User Obligations)",
+        "content": "Users must not engage in the following acts:",
+        "items": [
+          "Registration of false information during application or changes",
+          "Misappropriation and unauthorized use of others' information",
+          "Unauthorized alteration of information posted by the Company",
+          "Transmission or posting of information other than information designated by the Company (such as computer programs)",
+          "Infringement of intellectual property rights such as copyrights of the Company and third parties",
+          "Acts that damage the reputation of the Company and third parties or interfere with their business",
+          "Disclosure or posting of obscene or violent messages, images, voices, and other information contrary to public order and morals to the Company",
+          "Posting materials containing software viruses, other computer codes, files, or programs designed to interrupt, destroy, or limit the normal operation of computer software, hardware, or telecommunications equipment, or sending them via email",
+          "Stalking and other acts of harassing other users",
+          "Collecting, storing, or disclosing personal information about other users without their consent",
+          "Using the Company's services for commercial activities by posting advertisements or promotions to unspecified masses or sending spam emails",
+          "Using services for commercial purposes without the Company's consent",
+          "Other illegal or improper acts"
+        ]
+      },
+      "intellectualProperty": {
+        "title": "Article 7 (Intellectual Property Rights)",
+        "content": "Copyrights and intellectual property rights to the service belong to the Company.",
+        "items": [
+          "The Company owns intellectual property rights and other rights related to the services provided by the Company, necessary software, images, marks, logos, designs, service names, information, and trademarks.",
+          "Users may not process, sell, distribute, repost, or use the information in paragraph 1 for commercial purposes, except when explicitly approved by the Company, and must not infringe the Company's intellectual property rights by other means.",
+          "The copyright of posts posted by users within the service belongs to the author of the post. However, the Company may use such posts within the scope necessary for service operation."
+        ]
+      },
+      "userContent": {
+        "title": "Article 8 (User Content)",
+        "content": "Users are responsible for content they post or transmit to the service.",
+        "items": [
+          "Users bear all legal responsibility for content they post.",
+          "By posting content to the Company, users grant the Company a license to use such content for service provision purposes.",
+          "The Company may delete or restrict use of content posted by users without prior notice if it is judged to fall under any of the following:",
+          "- Content that defames or slanders other users or third parties, damaging their reputation",
+          "- Content that violates public order and morals",
+          "- Content deemed to be connected to criminal acts",
+          "- Content that infringes the Company's copyright, third parties' copyrights, or other rights",
+          "- Content that exceeds the posting period set by the Company",
+          "- Content deemed to violate related laws"
+        ]
+      },
+      "privacy": {
+        "title": "Article 9 (Privacy Protection)",
+        "content": "The Company complies with the Personal Information Protection Act and other related laws to protect users' personal information, and informs users through the privacy policy about how personal information provided by users is used and what measures are taken to protect personal information.",
+        "items": [
+          "The Company strives to protect users' personal information, including user registration information, in accordance with related laws.",
+          "Related laws and the Company's privacy policy apply to the protection of users' personal information."
+        ]
+      },
+      "cookies": {
+        "title": "Article 10 (Use of Cookies)",
+        "content": "The Company uses 'cookies' that store and retrieve user information to provide specialized services to users.",
+        "items": [
+          "Cookies are small pieces of information sent by the server used to operate the website to the user's browser and may be stored on the user's computer hard disk.",
+          "Users have the right to choose cookie installation. Therefore, users can set options in their web browser to allow all cookies, go through confirmation each time cookies are stored, or reject the storage of all cookies.",
+          "However, if users refuse cookie installation, there may be difficulties in providing services."
+        ]
+      },
+      "liability": {
+        "title": "Article 11 (Company's Obligations and Limitation of Liability)",
+        "content": "The Company does not engage in acts prohibited by related laws and these terms or contrary to public order and morals, and makes every effort to provide services continuously and stably.",
+        "items": [
+          "The Company must have security systems to protect personal information (including credit information) so that users can use services safely, and must disclose and comply with the privacy policy.",
+          "The Company does not guarantee the reliability, accuracy, etc. of information, materials, and facts displayed or included in the service and does not bear responsibility for them.",
+          "The Company has no obligation to intervene in disputes arising between users or between users and third parties through the service, and has no responsibility to compensate for damages resulting therefrom.",
+          "The Company bears no responsibility for the use of free services unless specifically provided by related laws.",
+          "The Company is exempt from responsibility for service provision when services cannot be provided due to natural disasters or equivalent force majeure."
+        ]
+      },
+      "termination": {
+        "title": "Article 12 (Service Use Restriction and Suspension)",
+        "content": "The Company may restrict service use in stages such as warning, temporary suspension, and permanent suspension when users violate obligations under these terms or interfere with normal service operation.",
+        "items": [
+          "Notwithstanding the preceding paragraph, the Company may immediately impose permanent suspension when related laws are violated, such as identity theft and payment fraud violating the Resident Registration Act, phone number theft, provision of illegal programs and operation interference violating the Copyright Act and Computer Program Protection Act, illegal communication and hacking violating the Information and Communications Network Act, distribution of malicious programs, and acts exceeding access authority.",
+          "When the Company restricts or suspends service use, it will notify the user of the reason and restriction period without delay."
+        ]
+      },
+      "compensation": {
+        "title": "Article 13 (Damages)",
+        "content": "Users who cause damage to the Company by violating these terms are liable to compensate the Company for such damage.",
+        "items": [
+          "When the Company suffers damage due to a user's violation of the terms, the user who violated the terms must compensate for all damages incurred by the Company.",
+          "When the Company receives damage compensation claims or lawsuits and other objections from third parties other than the user due to illegal acts or violations of these terms by the user in using the service, the user must indemnify the Company at their own responsibility and expense."
+        ]
+      },
+      "disputeResolution": {
+        "title": "Article 14 (Dispute Resolution)",
+        "content": "The Company and users must make all necessary efforts to amicably resolve disputes arising in relation to the service.",
+        "items": [
+          "The Company prioritizes handling complaints and opinions submitted by users. However, when prompt handling is difficult, the Company will immediately notify users of the reason and processing schedule.",
+          "Disputes between the Company and users may be subject to mediation by the Electronic Commerce Dispute Mediation Committee established under Article 28 of the Electronic Commerce Basic Act and Article 15 of its Enforcement Decree."
+        ]
+      },
+      "governingLaw": {
+        "title": "Article 15 (Jurisdiction and Governing Law)",
+        "content": "German law applies to these terms and service use contracts between the Company and users, and lawsuits may be filed in competent courts under German civil procedure law for disputes arising from service use.",
+        "items": [
+          "Lawsuits filed between the Company and users shall have Frankfurt am Main Regional Court (Landgericht Frankfurt am Main) as the competent court.",
+          "When German courts do not have jurisdiction, disputes shall be resolved according to the arbitration rules of the German Institution for Arbitration (DIS - Deutsche Institution für Schiedsgerichtsbarkeit)."
+        ]
+      },
+      "miscellaneous": {
+        "title": "Article 16 (Miscellaneous)",
+        "content": "Matters not specified in these terms and interpretation of these terms shall follow related laws or commercial practices.",
+        "items": [
+          "Even if some provisions of these terms are found to be legally invalid or unenforceable, the remaining provisions continue to be valid.",
+          "The Company's failure to enforce any provision of these terms shall not be deemed a waiver of that provision.",
+          "These terms are written in Korean, and in case of differences with versions translated into other languages, the Korean version takes precedence."
+        ]
+      }
+    }
+  },
+  "cookiePolicy": {
+    "title": "Cookie Policy",
+    "lastUpdated": "Last updated: {date}",
+    "introduction": "This Cookie Policy explains how Bridgemakers (hereinafter 'Company', 'we', 'us') uses cookies and similar technologies on our website https://bridgemakers.co.kr. This policy explains what these technologies are, why we use them, and your rights to control them.",
+    "sections": {
+      "whatAreCookies": {
+        "title": "What are cookies?",
+        "content": "Cookies are small data files that are placed on your computer or mobile device when you visit a website. Cookies are widely used by website owners to make their websites work more efficiently and to provide reporting information.",
+        "details": {
+          "firstParty": "Cookies set by the website owner (in this case, Bridgemakers) are called 'first-party cookies'.",
+          "thirdParty": "Cookies set by parties other than the website owner are called 'third-party cookies'. Third-party cookies enable third-party features or functionality to be provided on or through the website (e.g., advertising, interactive content, and analytics)."
+        }
+      },
+      "whyWeUseCookies": {
+        "title": "Why do we use cookies?",
+        "content": "We use first-party and third-party cookies for several reasons. Some cookies are required for technical reasons for our website to operate, and we refer to these as 'essential' or 'strictly necessary' cookies. Other cookies enable us to track and target the interests of our users to enhance the experience on our online services. Third parties serve cookies through our website for advertising, analytics, and other purposes."
+      },
+      "howToControlCookies": {
+        "title": "How can I control cookies?",
+        "content": "You have the right to decide whether to accept or reject cookies. You can exercise your cookie rights by setting your preferences in the Cookie Consent Manager. The Cookie Consent Manager allows you to select which categories of cookies you accept or reject. Essential cookies cannot be rejected as they are strictly necessary to provide you with services.",
+        "browserControl": "You can also set or amend your web browser controls to accept or refuse cookies. If you choose to reject cookies, you may still use our website though your access to some functionality and areas of our website may be restricted."
+      },
+      "cookieTypes": {
+        "title": "Types of cookies",
+        "essential": {
+          "title": "Essential website cookies",
+          "description": "These cookies are strictly necessary to provide you with services available through our website and to use some of its features, such as access to secure areas.",
+          "examples": [
+            "Session management cookies",
+            "Security cookies",
+            "Load balancing cookies"
+          ]
+        },
+        "performance": {
+          "title": "Performance and functionality cookies",
+          "description": "These cookies are used to enhance the performance and functionality of our website but are non-essential to their use. However, without these cookies, certain functionality (like videos) may become unavailable.",
+          "examples": [
+            "User preference storage",
+            "Language settings",
+            "Regional settings"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics and customization cookies",
+          "description": "These cookies collect information that is used either in aggregate form to help us understand how our website is being used or how effective our marketing campaigns are, or to help us customize our website for you.",
+          "examples": [
+            "Google Analytics",
+            "User behavior analysis",
+            "A/B testing"
+          ]
+        },
+        "advertising": {
+          "title": "Advertising cookies",
+          "description": "These cookies are used to make advertising messages more relevant to you. They perform functions like preventing the same ad from continuously reappearing, ensuring that ads are properly displayed for advertisers, and in some cases selecting advertisements that are based on your interests.",
+          "examples": [
+            "Targeted advertising",
+            "Retargeting",
+            "Ad effectiveness measurement"
+          ]
+        },
+        "social": {
+          "title": "Social networking cookies",
+          "description": "These cookies are used to enable you to share pages and content that you find interesting on our website through third-party social networking and other websites. These cookies may also be used for advertising purposes.",
+          "examples": [
+            "Social media share buttons",
+            "Social login",
+            "Social media plugins"
+          ]
+        }
+      },
+      "browserManagement": {
+        "title": "Managing cookies in your browser",
+        "content": "Since the way to refuse cookies through your web browser controls varies from browser to browser, you should visit your browser's help menu for more information. The following is information about how to manage cookies on the most popular browsers:",
+        "browsers": {
+          "chrome": "Chrome",
+          "firefox": "Firefox",
+          "safari": "Safari",
+          "edge": "Edge",
+          "opera": "Opera"
+        }
+      },
+      "otherTechnologies": {
+        "title": "Other tracking technologies like web beacons",
+        "content": "Cookies are not the only way to recognize or track visitors to a website. We may use other, similar technologies from time to time, like web beacons (sometimes called 'tracking pixels' or 'clear gifs'). These are tiny graphics files that contain a unique identifier that enables us to recognize when someone has visited our website or opened an email including them."
+      },
+      "targetedAdvertising": {
+        "title": "Do you serve targeted advertising?",
+        "content": "Third parties may serve cookies on your computer or mobile device to serve advertising through our website. These companies may use information about your visits to this and other websites in order to provide relevant advertisements about goods and services that you may be interested in."
+      },
+      "policyUpdates": {
+        "title": "How often will you update this Cookie Policy?",
+        "content": "We may update this Cookie Policy from time to time in order to reflect, for example, changes to the cookies we use or for other operational, legal, or regulatory reasons. Please therefore revisit this Cookie Policy regularly to stay informed about our use of cookies and related technologies."
+      },
+      "contact": {
+        "title": "Where can I get further information?",
+        "content": "If you have any questions about our use of cookies or other technologies, please email us or contact us by post at:",
+        "email": "Email: contact@bridgemakers.co.kr",
+        "address": {
+          "company": "Bridgemakers",
+          "street": "Bockenheimer Landstraße 123",
+          "city": "60325 Frankfurt am Main",
+          "country": "Germany"
+        },
+        "phone": "Phone: +49-69-1234-5678"
+      }
+    },
+    "specificCookies": {
+      "title": "Specific cookies we use",
+      "description": "The specific types of first-party and third-party cookies served through our website and the purposes they perform are described in the table below:",
+      "categories": {
+        "essential": {
+          "sessionId": {
+            "name": "SESSIONID",
+            "purpose": "User session management",
+            "provider": "bridgemakers.co.kr",
+            "type": "HTTP Cookie",
+            "expires": "Session end"
+          },
+          "csrfToken": {
+            "name": "CSRF-TOKEN",
+            "purpose": "CSRF attack prevention",
+            "provider": "bridgemakers.co.kr",
+            "type": "HTTP Cookie",
+            "expires": "Session end"
+          }
+        },
+        "analytics": {
+          "googleAnalytics": {
+            "name": "_ga",
+            "purpose": "Google Analytics - User distinction",
+            "provider": "Google",
+            "type": "HTTP Cookie",
+            "expires": "2 years"
+          },
+          "googleAnalyticsId": {
+            "name": "_gid",
+            "purpose": "Google Analytics - User distinction",
+            "provider": "Google",
+            "type": "HTTP Cookie",
+            "expires": "24 hours"
+          }
+        },
+        "performance": {
+          "language": {
+            "name": "LANG",
+            "purpose": "Store user language preference",
+            "provider": "bridgemakers.co.kr",
+            "type": "HTTP Cookie",
+            "expires": "1 year"
+          }
+        }
+      }
+    }
+  }
+} 

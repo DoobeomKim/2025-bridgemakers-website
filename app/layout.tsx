@@ -23,7 +23,7 @@ export default async function RootLayout({
   const { data: { session } } = await supabase.auth.getSession();
 
   return (
-    <html lang="ko">
+    <html lang="ko" className="dark">
       <body className={inter.className}>
         <AuthProvider initialSession={session}>
           {children}

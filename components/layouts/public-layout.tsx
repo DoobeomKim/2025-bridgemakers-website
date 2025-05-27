@@ -1,5 +1,6 @@
 import Header from "@/components/shared/header/Header";
 import Footer from "@/components/shared/footer/Footer";
+import CookieConsent from "@/components/ui/CookieConsent";
 import { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
 
@@ -28,6 +29,9 @@ export default function PublicLayout({
       />
       <main className="flex-grow pt-16">{children}</main>
       <Footer locale={locale} />
+      
+      {/* 쿠키 동의 모달 */}
+      <CookieConsent lang={locale} />
     </div>
   );
 } 

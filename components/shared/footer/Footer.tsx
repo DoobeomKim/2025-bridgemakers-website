@@ -49,20 +49,28 @@ export default async function Footer({ locale }: FooterProps) {
               </h3>
               <ul className="mt-4 space-y-4">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href={`/${locale}/privacy-policy`}
                     className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
                   >
-                    Privacy Policy
-                  </a>
+                    {locale === 'ko' ? '개인정보처리방침' : 'Privacy Policy'}
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href={`/${locale}/terms-of-service`}
                     className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
                   >
-                    Terms of Service
-                  </a>
+                    {locale === 'ko' ? '이용약관' : 'Terms of Service'}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={`/${locale}/cookie-policy`}
+                    className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
+                  >
+                    {locale === 'ko' ? '쿠키 정책' : 'Cookie Policy'}
+                  </Link>
                 </li>
               </ul>
             </div>

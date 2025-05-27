@@ -6,6 +6,7 @@ declare global {
       common: typeof import('../messages/ko/common.json');
       auth: typeof import('../messages/ko/auth.json');
       dashboard: typeof import('../messages/ko/dashboard.json');
+      legal: typeof import('../messages/ko/legal.json');
     }
 
     type Namespace = keyof Namespaces;
