@@ -53,7 +53,7 @@ export default async function Footer({ locale }: FooterProps) {
                     href={`/${locale}/privacy-policy`}
                     className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
                   >
-                    {locale === 'ko' ? '개인정보처리방침' : 'Privacy Policy'}
+                    Privacy Policy
                   </Link>
                 </li>
                 <li>
@@ -61,7 +61,7 @@ export default async function Footer({ locale }: FooterProps) {
                     href={`/${locale}/terms-of-service`}
                     className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
                   >
-                    {locale === 'ko' ? '이용약관' : 'Terms of Service'}
+                    Terms of Service
                   </Link>
                 </li>
                 <li>
@@ -69,7 +69,7 @@ export default async function Footer({ locale }: FooterProps) {
                     href={`/${locale}/cookie-policy`}
                     className="text-[16px] text-white hover:text-[#cba967] transition-colors leading-[1.5]"
                   >
-                    {locale === 'ko' ? '쿠키 정책' : 'Cookie Policy'}
+                    Cookie Policy
                   </Link>
                 </li>
               </ul>
