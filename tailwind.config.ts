@@ -65,6 +65,10 @@ const config: Config = {
       },
       borderRadius: {
         'standard': '8px',
+        'sm': 'var(--radius-sm)',
+        'md': 'var(--radius-md)',
+        'lg': 'var(--radius-lg)',
+        'xl': 'var(--radius-xl)',
       },
       boxShadow: {
         'sm': '0 2px 4px rgba(0, 0, 0, 0.1)',
@@ -82,12 +86,6 @@ const config: Config = {
       },
       animation: {
         'fadeIn': 'fadeIn 0.2s ease-out forwards'
-      },
-      borderRadius: {
-        'sm': 'var(--radius-sm)',
-        'md': 'var(--radius-md)',
-        'lg': 'var(--radius-lg)',
-        'xl': 'var(--radius-xl)',
       },
     },
   },
