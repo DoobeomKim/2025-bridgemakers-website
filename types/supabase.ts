@@ -50,6 +50,106 @@ export interface Database {
           company_name?: string | null
         }
       }
+      contact_inquiries: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          inquiry_type: 'quote' | 'general'
+          client_type: 'individual' | 'company'
+          name: string
+          email: string
+          phone: string
+          company_name: string | null
+          selected_fields: string[] | null
+          budget: string | null
+          project_date: string | null
+          content: string
+          status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+          admin_notes: string | null
+          privacy_consent: boolean
+          processed_at: string | null
+          assigned_to: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          inquiry_type: 'quote' | 'general'
+          client_type: 'individual' | 'company'
+          name: string
+          email: string
+          phone: string
+          company_name?: string | null
+          selected_fields?: string[] | null
+          budget?: string | null
+          project_date?: string | null
+          content: string
+          status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+          admin_notes?: string | null
+          privacy_consent?: boolean
+          processed_at?: string | null
+          assigned_to?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          inquiry_type?: 'quote' | 'general'
+          client_type?: 'individual' | 'company'
+          name?: string
+          email?: string
+          phone?: string
+          company_name?: string | null
+          selected_fields?: string[] | null
+          budget?: string | null
+          project_date?: string | null
+          content?: string
+          status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+          admin_notes?: string | null
+          privacy_consent?: boolean
+          processed_at?: string | null
+          assigned_to?: string | null
+        }
+      }
+      inquiry_files: {
+        Row: {
+          id: string
+          inquiry_id: string
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_extension: string
+          storage_path: string
+          uploaded_by_ip: string | null
+          is_processed: boolean
+        }
+        Insert: {
+          id?: string
+          inquiry_id: string
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_extension: string
+          storage_path: string
+          uploaded_by_ip?: string | null
+          is_processed?: boolean
+        }
+        Update: {
+          id?: string
+          inquiry_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_extension?: string
+          storage_path?: string
+          uploaded_by_ip?: string | null
+          is_processed?: boolean
+        }
+      }
     }
     Views: {
       [_ in never]: never

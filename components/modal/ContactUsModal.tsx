@@ -177,36 +177,71 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
 
     try {
       console.log('🚀 문의 접수 시작');
-
-      // 1️⃣ 먼저 문의 정보를 제출
-      const inquiryResponse = await fetch('/api/contact-inquiry', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inquiryType: formData.inquiryType,
-          clientType: formData.clientType,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          companyName: formData.companyName,
-          fields: formData.fields,
-          budget: formData.budget,
-          projectDate: formData.projectDate,
-          content: formData.content,
-          privacyConsent: formData.privacyConsent,
-        }),
+      console.log('📤 전송 데이터:', {
+        inquiryType: formData.inquiryType,
+        clientType: formData.clientType,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        privacyConsent: formData.privacyConsent
       });
 
-      const inquiryResult = await inquiryResponse.json();
+      // 1️⃣ 먼저 문의 정보를 제출
+      let inquiryResponse;
+      try {
+        inquiryResponse = await fetch('/api/contact-inquiry', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inquiryType: formData.inquiryType,
+            clientType: formData.clientType,
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            companyName: formData.companyName,
+            fields: formData.fields,
+            budget: formData.budget,
+            projectDate: formData.projectDate,
+            content: formData.content,
+            privacyConsent: formData.privacyConsent,
+          }),
+        });
+      } catch (networkError) {
+        console.error('❌ 네트워크 요청 실패:', networkError);
+        throw new Error('네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해주세요.');
+      }
+
+      let inquiryResult;
+      try {
+        inquiryResult = await inquiryResponse.json();
+      } catch (jsonError) {
+        console.error('❌ 응답 파싱 실패:', jsonError);
+        console.error('❌ 응답 상태:', inquiryResponse.status, inquiryResponse.statusText);
+        throw new Error(`서버 응답을 처리할 수 없습니다. (상태: ${inquiryResponse.status})`);
+      }
+
+      console.log('📨 서버 응답:', { 
+        status: inquiryResponse.status, 
+        ok: inquiryResponse.ok,
+        result: inquiryResult 
+      });
 
       if (!inquiryResponse.ok) {
         // 서버 검증 오류 처리
         if (inquiryResult.field) {
           setErrors({ [inquiryResult.field]: inquiryResult.message });
         }
-        throw new Error(inquiryResult.message || '문의 접수에 실패했습니다.');
+        
+        // 자세한 에러 메시지 구성
+        let errorMessage = inquiryResult.message || '문의 접수에 실패했습니다.';
+        if (inquiryResult.details) {
+          console.error('❌ 서버 에러 상세:', inquiryResult.details);
+          errorMessage += '\n\n상세 정보: ' + inquiryResult.details;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       console.log('✅ 문의 접수 완료:', inquiryResult);
@@ -282,7 +317,23 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
       
     } catch (error) {
       console.error('❌ 문의 접수 실패:', error);
-      alert(error instanceof Error ? error.message : '문의 접수 중 오류가 발생했습니다. 다시 시도해주세요.');
+      
+      // 에러 타입에 따른 메시지 구성
+      let errorMessage = '문의 접수 중 오류가 발생했습니다.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // 개발 환경에서만 상세 에러 표시
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔍 개발자 정보:', {
+            name: error.name,
+            stack: error.stack
+          });
+        }
+      }
+      
+      alert(errorMessage + '\n\n다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }

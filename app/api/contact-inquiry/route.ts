@@ -18,15 +18,40 @@ interface ContactInquiryRequest {
 export async function POST(request: NextRequest) {
   try {
     console.log('🚀 문의 접수 API 시작');
+    console.log('🌍 환경 정보:', {
+      nodeEnv: process.env.NODE_ENV,
+      supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      vercelEnv: process.env.VERCEL_ENV,
+    });
     
     // 요청 바디 파싱
-    const body: ContactInquiryRequest = await request.json();
-    console.log('📝 받은 데이터:', { ...body, privacyConsent: body.privacyConsent });
+    let body: ContactInquiryRequest;
+    try {
+      body = await request.json();
+      console.log('📝 받은 데이터 타입:', {
+        inquiryType: typeof body.inquiryType,
+        name: typeof body.name,
+        email: typeof body.email,
+        privacyConsent: typeof body.privacyConsent
+      });
+    } catch (parseError) {
+      console.error('❌ 요청 바디 파싱 실패:', parseError);
+      return NextResponse.json(
+        { 
+          error: 'PARSE_ERROR', 
+          message: '요청 데이터 형식이 올바르지 않습니다.',
+          details: parseError instanceof Error ? parseError.message : String(parseError)
+        },
+        { status: 400 }
+      );
+    }
 
     // 🔍 필수 필드 검증
     const requiredFields = ['inquiryType', 'clientType', 'name', 'email', 'phone', 'content', 'privacyConsent'];
     for (const field of requiredFields) {
       if (!body[field as keyof ContactInquiryRequest]) {
+        console.error(`❌ 필수 필드 누락: ${field}`, body[field as keyof ContactInquiryRequest]);
         return NextResponse.json(
           { 
             error: 'VALIDATION_ERROR', 
@@ -101,12 +126,21 @@ export async function POST(request: NextRequest) {
     }
 
     // 📡 Supabase 클라이언트 생성
-    const supabase = createServerClient();
-
-    // 클라이언트 IP 주소 가져오기
-    const clientIP = request.headers.get('x-forwarded-for') || 
-                    request.headers.get('x-real-ip') || 
-                    'unknown';
+    let supabase;
+    try {
+      supabase = createServerClient();
+      console.log('✅ Supabase 클라이언트 생성 완료');
+    } catch (supabaseError) {
+      console.error('❌ Supabase 클라이언트 생성 실패:', supabaseError);
+      return NextResponse.json(
+        { 
+          error: 'CONNECTION_ERROR', 
+          message: '데이터베이스 연결 중 오류가 발생했습니다.',
+          details: supabaseError instanceof Error ? supabaseError.message : String(supabaseError)
+        },
+        { status: 500 }
+      );
+    }
 
     // 🗃️ 데이터베이스에 문의 정보 삽입
     const inquiryData = {
@@ -124,7 +158,10 @@ export async function POST(request: NextRequest) {
       status: 'pending'
     };
 
-    console.log('💾 DB 삽입 데이터:', inquiryData);
+    console.log('💾 DB 삽입 데이터:', {
+      ...inquiryData,
+      content: `${inquiryData.content.substring(0, 50)}...`
+    });
 
     const { data: inquiry, error: insertError } = await supabase
       .from('contact_inquiries')
@@ -133,12 +170,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('❌ DB 삽입 실패:', insertError);
+      console.error('❌ DB 삽입 실패:', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code
+      });
       return NextResponse.json(
         { 
           error: 'DATABASE_ERROR', 
           message: '문의 접수 중 오류가 발생했습니다. 다시 시도해주세요.',
-          details: insertError.message
+          details: insertError.message,
+          code: insertError.code
         },
         { status: 500 }
       );
@@ -155,12 +198,19 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('❌ Contact Inquiry API Error:', error);
+    console.error('❌ Contact Inquiry API Error:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown'
+    });
     
     return NextResponse.json(
       { 
         error: 'INTERNAL_ERROR', 
-        message: '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        message: '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        details: process.env.NODE_ENV === 'development' 
+          ? (error instanceof Error ? error.message : String(error))
+          : undefined
       },
       { status: 500 }
     );
