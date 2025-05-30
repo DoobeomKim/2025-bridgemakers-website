@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 interface ContactInquiryRequest {
   inquiryType: 'quote' | 'general';
@@ -125,11 +126,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 📡 Supabase 클라이언트 생성
+    // 📡 Supabase 클라이언트 생성 (서비스 롤 사용)
     let supabase;
     try {
-      supabase = createServerClient();
-      console.log('✅ Supabase 클라이언트 생성 완료');
+      // 문의 접수는 서비스 롤 키 사용 (RLS 우회)
+      supabase = createClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+      console.log('✅ Supabase 서비스 롤 클라이언트 생성 완료');
     } catch (supabaseError) {
       console.error('❌ Supabase 클라이언트 생성 실패:', supabaseError);
       return NextResponse.json(

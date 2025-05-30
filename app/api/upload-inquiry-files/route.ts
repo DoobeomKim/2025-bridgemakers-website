@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'];
@@ -46,7 +47,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // 현재 사용자 정보 확인 (디버깅용)
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -116,13 +120,7 @@ export async function POST(request: NextRequest) {
         console.log(`📤 파일 업로드 시작: ${file.name} -> ${storagePath}`);
 
         // 서비스 역할로 스토리지 업로드
-        const { createClient } = await import('@supabase/supabase-js');
-        const serviceSupabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-
-        const { data: uploadData, error: uploadError } = await serviceSupabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('inquiry-attachments')
           .upload(storagePath, file, {
             cacheControl: '3600',
@@ -156,7 +154,7 @@ export async function POST(request: NextRequest) {
         console.log('💾 파일 정보 DB 저장 시도:', { inquiry_id: inquiryId, file_name: file.name });
 
         // 서비스 역할로 RLS 우회하여 저장
-        const { data: fileRecord, error: dbError } = await serviceSupabase
+        const { data: fileRecord, error: dbError } = await supabase
           .from('inquiry_files')
           .insert(fileData)
           .select('id, file_name, file_size')
@@ -166,7 +164,7 @@ export async function POST(request: NextRequest) {
           console.error(`❌ 파일 DB 저장 실패 (${file.name}):`, dbError);
           
           // 스토리지에서 업로드된 파일 삭제
-          await serviceSupabase.storage
+          await supabase.storage
             .from('inquiry-attachments')
             .remove([uploadData.path]);
 
