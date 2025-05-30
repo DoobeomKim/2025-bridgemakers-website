@@ -1,6 +1,7 @@
 import Header from "@/components/shared/header/Header";
 import Footer from "@/components/shared/footer/Footer";
 import CookieConsent from "@/components/ui/CookieConsent";
+import GlobalContactModal from "@/components/modal/GlobalContactModal";
 import { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
 
@@ -32,6 +33,9 @@ export default function PublicLayout({
       
       {/* 쿠키 동의 모달 */}
       <CookieConsent lang={locale} />
+      
+      {/* 전역 Contact Us 모달 */}
+      <GlobalContactModal />
     </div>
   );
 } 

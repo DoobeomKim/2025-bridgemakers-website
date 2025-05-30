@@ -1,13 +1,30 @@
 "use client";
 
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
 import InstagramFeed from "../../components/InstagramFeed";
+import { useContactModal } from '@/hooks/useContactModal';
 
 interface HomeClientProps {
   locale: string;
   projects: any[];
+}
+
+// Contact 모달 버튼을 위한 내부 컴포넌트
+function ContactButton() {
+  const { openModal } = useContactModal();
+  
+  return (
+    <button 
+      onClick={openModal}
+      className="button-primary inline-flex items-center justify-between py-2.5 sm:py-3 px-6 sm:px-8 rounded-full hover:bg-[#b99a58] transform hover:translate-y-[-2px] transition-all duration-300">
+      <span className="font-medium text-[13px] sm:text-[14px] tracking-[0.25px]">상담하기</span>
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+      </svg>
+    </button>
+  );
 }
 
 export default function HomeClient({ locale, projects }: HomeClientProps) {
@@ -109,14 +126,19 @@ export default function HomeClient({ locale, projects }: HomeClientProps) {
             
             {/* CTA 버튼 */}
             <div className="pl-0">
-              <Link 
-                href={`/${locale}/contact`}
-                className="button-primary inline-flex items-center justify-between py-2.5 sm:py-3 px-6 sm:px-8 rounded-full hover:bg-[#b99a58] transform hover:translate-y-[-2px] transition-all duration-300">
-                <span className="font-medium text-[13px] sm:text-[14px] tracking-[0.25px]">상담하기</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </Link>
+              <Suspense fallback={
+                <button 
+                  className="button-primary inline-flex items-center justify-between py-2.5 sm:py-3 px-6 sm:px-8 rounded-full opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <span className="font-medium text-[13px] sm:text-[14px] tracking-[0.25px]">상담하기</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              }>
+                <ContactButton />
+              </Suspense>
             </div>
           </div>
           

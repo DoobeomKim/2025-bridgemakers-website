@@ -160,6 +160,8 @@ export async function generateSlug(projectData: ProjectData): Promise<string> {
  * - https://www.youtube.com/watch?v=VIDEO_ID
  * - https://youtu.be/VIDEO_ID
  * - https://www.youtube.com/embed/VIDEO_ID
+ * - https://www.youtube.com/shorts/VIDEO_ID (YouTube Shorts)
+ * - https://youtube.com/shorts/VIDEO_ID (YouTube Shorts, www 없이)
  */
 export function getYouTubeVideoId(url: string): string | null {
   if (!url) return null;
@@ -181,6 +183,11 @@ export function getYouTubeVideoId(url: string): string | null {
       
       // embed/ 형식
       if (urlObj.pathname.startsWith('/embed/')) {
+        return urlObj.pathname.split('/')[2];
+      }
+      
+      // shorts/ 형식 (YouTube Shorts)
+      if (urlObj.pathname.startsWith('/shorts/')) {
         return urlObj.pathname.split('/')[2];
       }
     }

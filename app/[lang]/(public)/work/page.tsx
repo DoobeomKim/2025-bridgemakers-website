@@ -37,7 +37,7 @@ export default function WorkPage({
         category,
         date,
         visibility,
-        industry_name
+        industry
       `)
       .eq('visibility', 'public')
       .order('date', { ascending: false })

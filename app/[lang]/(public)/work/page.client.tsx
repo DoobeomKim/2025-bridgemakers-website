@@ -14,9 +14,8 @@ interface Project {
   image_url: string;
   client: string;
   category: string;
-  industry?: string;
+  industry: string;
   date: string;
-  industry_name: string;
   visibility: string;
 }
 
@@ -63,7 +62,7 @@ export default function ClientPage({
 
   // 카테고리와 산업 목록
   const categories = ["전체", ...Array.from(new Set(projects.map(p => p.category)))];
-  const industries = ["전체", ...Array.from(new Set(projects.map(p => p.industry_name)))].filter(Boolean);
+  const industries = ["전체", ...Array.from(new Set(projects.map(p => p.industry).filter(Boolean)))];
 
   // URL에서 project 쿼리 파라미터를 확인
   useEffect(() => {
@@ -101,7 +100,7 @@ export default function ClientPage({
     
     // 산업 필터링
     if (selectedIndustry !== "전체") {
-      filtered = filtered.filter(p => p.industry_name === selectedIndustry);
+      filtered = filtered.filter(p => p.industry === selectedIndustry);
     }
     
     // 날짜 정렬

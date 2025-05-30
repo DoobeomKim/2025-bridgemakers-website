@@ -6,7 +6,7 @@ import { ko } from 'date-fns/locale';
 import { Project, ProjectImage, ProjectTag } from '@/lib/database.types';
 import { ShareIcon } from '@heroicons/react/24/outline';
 import { getYouTubeVideoId } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ProjectDetailProps {
   project: Project & {
@@ -38,12 +38,53 @@ const getYouTubeEmbedUrl = (url: string) => {
 
 const getYouTubeThumbnail = (url: string) => {
   const videoId = getYouTubeVideoId(url);
-  return videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : '';
+  if (!videoId) return '';
+  
+  // 여러 품질의 썸네일을 시도 (YouTube Shorts는 maxresdefault가 없을 수 있음)
+  // 1. maxresdefault (최고 품질) - 일반 동영상에서 주로 사용
+  // 2. hqdefault (고품질) - 대부분의 동영상에서 사용 가능
+  // 3. mqdefault (중품질) - 모든 동영상에서 사용 가능
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+};
+
+const getYouTubeThumbnailFallback = (url: string) => {
+  const videoId = getYouTubeVideoId(url);
+  if (!videoId) return '';
+  
+  // 폴백용 중품질 썸네일
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 };
 
 export default function ProjectDetail({ project }: ProjectDetailProps) {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailSrc, setThumbnailSrc] = useState('');
+
+  // 썸네일 URL 초기화 및 폴백 처리
+  useEffect(() => {
+    if (project.video_url) {
+      setThumbnailSrc(getYouTubeThumbnail(project.video_url));
+      setThumbnailError(false);
+    }
+  }, [project.video_url]);
+
+  // 썸네일 로딩 에러 처리
+  const handleThumbnailError = () => {
+    if (!thumbnailError && project.video_url) {
+      // 첫 번째 에러: 폴백 썸네일 시도
+      console.log('🖼️ 첫 번째 썸네일 실패, 폴백 썸네일 시도');
+      setThumbnailSrc(getYouTubeThumbnailFallback(project.video_url));
+      setThumbnailError(true);
+    } else if (project.video_thumbnail_url) {
+      // 두 번째 에러: 프로젝트 커스텀 썸네일 사용
+      console.log('🖼️ 유튜브 썸네일 실패, 커스텀 썸네일 사용');
+      setThumbnailSrc(project.video_thumbnail_url);
+    } else {
+      // 모든 썸네일 실패: 기본 플레이스홀더
+      console.log('🖼️ 모든 썸네일 실패, 기본 플레이스홀더 사용');
+      setThumbnailSrc('');
+    }
+  };
 
   // 태그 정보 추출
   const tags = project.project_tag_relations
@@ -104,12 +145,23 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
             className="relative aspect-video w-full mb-8 rounded-lg overflow-hidden group cursor-pointer"
             onClick={() => setIsVideoPlaying(true)}
           >
-            <img 
-              src={thumbnailError ? (project.video_thumbnail_url || '') : getYouTubeThumbnail(project.video_url)}
-              alt={project.title}
-              className="w-full h-full object-cover"
-              onError={() => setThumbnailError(true)}
-            />
+            {thumbnailSrc ? (
+              <img 
+                src={thumbnailSrc}
+                alt={project.title}
+                className="w-full h-full object-cover"
+                onError={handleThumbnailError}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm">동영상 썸네일</p>
+                </div>
+              </div>
+            )}
             <div className="absolute inset-0 bg-black/30 transition-opacity duration-300 group-hover:opacity-60" />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/15">

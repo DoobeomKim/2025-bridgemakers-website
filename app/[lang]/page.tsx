@@ -13,7 +13,7 @@ export default async function Page({ params }: { params: { lang: string } }) {
     .from('projects')
     .select('*')
     .eq('visibility', 'public')
-    .order('created_at', { ascending: false })
+    .order('date', { ascending: false })
     .limit(4);
 
   return (
