@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import nodemailer from 'nodemailer';
 
 // 이메일 발송을 위한 Nodemailer 설정 (Ionos SMTP 사용)
@@ -65,8 +66,17 @@ export async function POST(request: NextRequest) {
     const body: EmailRequest = await request.json();
     const { inquiryId, email, emailType } = body;
 
-    // Supabase 클라이언트 생성
-    const supabase = createServerClient();
+    // Supabase 클라이언트 생성 (서비스 롤 사용)
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
     let inquiry: InquiryDetails;
 
