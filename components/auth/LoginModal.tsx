@@ -640,11 +640,11 @@ const LoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginMod
                 />
                 <label htmlFor="terms" className="ml-2 block text-sm text-[#C7C7CC]">
                   <span>브릿지메이커스의 </span>
-                  <Link href={`/${locale}/terms`} className="text-[#cba967] hover:text-[#b99a58]">
+                  <Link href={`/${locale}/terms-of-service`} className="text-[#cba967] hover:text-[#b99a58]" target="_blank" rel="noopener noreferrer">
                     서비스 이용약관
                   </Link>
                   <span>과 </span>
-                  <Link href={`/${locale}/privacy`} className="text-[#cba967] hover:text-[#b99a58]">
+                  <Link href={`/${locale}/privacy-policy`} className="text-[#cba967] hover:text-[#b99a58]" target="_blank" rel="noopener noreferrer">
                     개인정보 처리방침
                   </Link>
                   <span>에 동의합니다</span> <span className="text-[#cba967]">*</span>

@@ -8,6 +8,10 @@ export async function middleware(req: NextRequest) {
   try {
     const res = NextResponse.next()
     
+    // 디바이스 및 브라우저 정보 확인
+    const userAgent = req.headers.get('user-agent') || '';
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    
     // 인증 관련 경로는 허용
     const isAuthRoute = req.nextUrl.pathname.startsWith('/auth/') || 
                        req.nextUrl.pathname.includes('/auth/confirm') ||
@@ -18,8 +22,20 @@ export async function middleware(req: NextRequest) {
       console.log('🔑 인증 경로 허용:', {
         pathname: req.nextUrl.pathname,
         search: req.nextUrl.search,
-        hash: req.nextUrl.hash
+        hash: req.nextUrl.hash,
+        userAgent: userAgent.substring(0, 100) + '...', // 로그 길이 제한
+        isMobile,
+        referer: req.headers.get('referer'),
+        host: req.headers.get('host')
       });
+      
+      // 모바일에서의 콜백 처리 시 추가 헤더 설정
+      if (isMobile && req.nextUrl.pathname.includes('/auth/callback')) {
+        res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.headers.set('Pragma', 'no-cache');
+        res.headers.set('Expires', '0');
+      }
+      
       return res;
     }
     

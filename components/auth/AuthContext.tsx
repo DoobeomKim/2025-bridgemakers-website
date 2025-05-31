@@ -552,18 +552,34 @@ export const AuthProvider = ({
     try {
       console.log('🔄 회원가입 시도:', { email, firstName, lastName });
       
-      const callbackURL = getAuthCallbackURL('ko');
-      console.log('📧 회원가입 콜백 URL:', callbackURL);
+      // 디버깅: 환경 정보 확인
+      if (typeof window !== 'undefined') {
+        const { debugEnvironment, validateEmailAuthFlow } = await import('@/lib/utils/debug');
+        debugEnvironment();
+        validateEmailAuthFlow();
+      }
       
+      const callbackURL = getAuthCallbackURL('ko');
+      console.log('📧 회원가입 콜백 URL:', {
+        callbackURL,
+        isCorrectDomain: callbackURL.includes('ibridgemakers.de'),
+        hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+        siteUrl: process.env.NEXT_PUBLIC_SITE_URL
+      });
+      
+      // 사용자 데이터 객체 생성
+      const userData = {
+        email,
+        first_name: firstName,
+        last_name: lastName,
+      };
+
       // 1. auth.users 테이블에 사용자 생성
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
+          data: userData, // user_metadata에 데이터 저장
           emailRedirectTo: callbackURL,
         },
       });
@@ -577,19 +593,52 @@ export const AuthProvider = ({
         throw new Error('사용자 생성 실패');
       }
 
-      // 임시 데이터를 로컬 스토리지에 저장
-      localStorage.setItem('pendingUserData', JSON.stringify({
+      console.log('✅ Supabase 회원가입 성공:', {
+        userId: data.user.id,
+        email: data.user.email,
+        emailRedirectTo: callbackURL,
+        needsEmailConfirmation: !data.session // 세션이 없으면 이메일 확인 필요
+      });
+
+      // 임시 데이터를 여러 저장소에 저장 (모바일 호환성 향상)
+      const pendingData = {
         id: data.user.id,
         email,
         first_name: firstName,
         last_name: lastName,
-      }));
+        timestamp: new Date().toISOString(), // 만료 확인용
+      };
+
+      // localStorage에 저장 시도
+      try {
+        localStorage.setItem('pendingUserData', JSON.stringify(pendingData));
+        console.log('✅ localStorage에 임시 데이터 저장 성공');
+      } catch (error) {
+        console.warn('⚠️ localStorage 저장 실패:', error);
+      }
+
+      // sessionStorage에도 백업 저장
+      try {
+        sessionStorage.setItem('pendingUserData', JSON.stringify(pendingData));
+        console.log('✅ sessionStorage에 임시 데이터 저장 성공');
+      } catch (error) {
+        console.warn('⚠️ sessionStorage 저장 실패:', error);
+      }
+
+      // 추가: 쿠키에도 저장 (fallback, httpOnly 아님)
+      try {
+        document.cookie = `pendingUserData=${encodeURIComponent(JSON.stringify(pendingData))}; path=/; max-age=3600; SameSite=Lax`;
+        console.log('✅ 쿠키에 임시 데이터 저장 성공');
+      } catch (error) {
+        console.warn('⚠️ 쿠키 저장 실패:', error);
+      }
 
       console.log('✅ 회원가입 성공 - 이메일 인증 대기 중:', {
         id: data.user.id,
         email: email,
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
+        user_metadata: data.user.user_metadata
       });
 
     } catch (error) {

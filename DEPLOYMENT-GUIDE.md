@@ -1,61 +1,74 @@
-# 배포환경 인증 설정 가이드
+# Bridgemakers 웹사이트 배포 가이드
 
-## 1. 환경변수 설정
+## 📋 **배포 전 준비사항**
 
-### 프로덕션 환경변수 (.env.production 또는 배포 플랫폼에서 설정)
+### 1. **환경변수 설정**
 
-```env
-# 기본 Supabase 설정
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-
+#### Vercel 환경변수
+```bash
 # 프로덕션 도메인 설정 (중요!)
-NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
+NEXT_PUBLIC_SITE_URL=https://ibridgemakers.de
 
-# Vercel 배포 시 자동 설정됨
+# Supabase 설정
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Vercel URL은 설정하지 않음 (자동 감지되지만 우선순위가 낮음)
 # NEXT_PUBLIC_VERCEL_URL=your-app.vercel.app
-
-# 환경 구분
-NODE_ENV=production
 ```
 
-## 2. Supabase URL 설정
+### 2. **Vercel 프로젝트 설정**
 
-### Supabase 대시보드에서 설정해야 할 항목들:
+#### 도메인 설정 순서:
+1. **Vercel 대시보드에서 프로젝트 설정**
+2. **Domains 탭에서 `ibridgemakers.de` 추가**
+3. **DNS 설정으로 CNAME 또는 A 레코드 구성**
+4. **SSL 인증서 자동 생성 확인**
 
-1. **Authentication > URL Configuration**에서:
-   - Site URL: `https://your-production-domain.com`
-   - Redirect URLs에 추가:
-     ```
-     https://your-production-domain.com/auth/callback
-     https://your-production-domain.com/ko/auth/callback
-     https://your-production-domain.com/**
-     http://localhost:3000/**  (개발용)
-     ```
-
-2. **OAuth Provider 설정** (Google 등):
-   - Authorized redirect URIs에 추가:
-     ```
-     https://your-project.supabase.co/auth/v1/callback
-     https://your-production-domain.com/auth/callback
-     ```
-
-## 3. 배포 플랫폼별 설정
-
-### Vercel 배포 시:
+#### 환경변수 추가:
 ```bash
-# 환경변수 설정
+# Vercel CLI 사용법
 vercel env add NEXT_PUBLIC_SITE_URL production
-# 값: https://your-domain.com
+# 값: https://ibridgemakers.de
 
-# 또는 Vercel 대시보드에서 Environment Variables 섹션에 추가
+vercel env add NEXT_PUBLIC_SUPABASE_URL production
+# 값: your-supabase-url
+
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production  
+# 값: your-supabase-anon-key
 ```
 
-### Netlify 배포 시:
-```bash
-# netlify.toml 파일에 환경변수 추가
-[build.environment]
-  NEXT_PUBLIC_SITE_URL = "https://your-domain.com"
+### 3. **Supabase 설정**
+
+#### Auth 설정 업데이트:
+1. **Supabase 대시보드 → Authentication → URL Configuration**
+2. **Site URL**: `https://ibridgemakers.de`
+3. **Redirect URLs 추가**:
+   - `https://ibridgemakers.de/ko/auth/callback`
+   - `https://ibridgemakers.de/en/auth/callback`
+   - `https://ibridgemakers.de/de/auth/callback`
+
+#### 이메일 템플릿 확인:
+- 회원가입 이메일의 확인 링크가 올바른 도메인으로 설정되는지 확인
+- `{{ .SiteURL }}` 변수가 `https://ibridgemakers.de`로 해석되는지 확인
+
+### 4. **DNS 설정 (도메인 제공업체에서)**
+
+#### ibridgemakers.de DNS 레코드:
+```
+Type: CNAME
+Name: @
+Value: cname.vercel-dns.com
+
+또는
+
+Type: A
+Name: @  
+Value: 76.76.19.61 (Vercel IP)
+
+Type: CNAME
+Name: www
+Value: cname.vercel-dns.com
 ```
 
 ## 4. 일반적인 문제 해결

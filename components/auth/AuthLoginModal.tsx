@@ -400,7 +400,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                   </div>
                   <div className="ml-3 text-sm">
                     <label htmlFor="terms" className="text-[#C7C7CC]">
-                      브릿지메이커스의 <Link href={`/${locale}/terms`} className="text-[#cba967] hover:underline">서비스 이용약관</Link>과 <Link href={`/${locale}/privacy`} className="text-[#cba967] hover:underline">개인정보 처리방침</Link>에 동의합니다 <span className="text-[#cba967]">*</span>
+                      브릿지메이커스의 <Link href={`/${locale}/terms-of-service`} className="text-[#cba967] hover:underline" target="_blank" rel="noopener noreferrer">서비스 이용약관</Link>과 <Link href={`/${locale}/privacy-policy`} className="text-[#cba967] hover:underline" target="_blank" rel="noopener noreferrer">개인정보 처리방침</Link>에 동의합니다 <span className="text-[#cba967]">*</span>
                     </label>
                     {formErrors.terms && <p className="mt-1 text-red-500 text-xs">{formErrors.terms}</p>}
                   </div>
