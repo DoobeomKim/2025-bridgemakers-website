@@ -160,20 +160,22 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
   if (!user || !userProfile || !compatibleUserProfile) {
     if (isMobile) {
       return (
-        <div className="space-y-2">
-          <button
-            onClick={handleLoginClick}
-            className="block w-full py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors text-left"
-          >
-            로그인
-          </button>
+        <>
+          <div className="space-y-2">
+            <button
+              onClick={handleLoginClick}
+              className="block w-full py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors text-left"
+            >
+              로그인
+            </button>
+          </div>
           <AuthLoginModal
             isOpen={isLoginModalOpen}
             onClose={() => setIsLoginModalOpen(false)}
             initialMode="login"
             locale={locale}
           />
-        </div>
+        </>
       );
     }
 
