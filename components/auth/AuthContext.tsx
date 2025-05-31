@@ -29,7 +29,9 @@ type AuthContextType = {
   isLoading: boolean;
   signIn: (provider: 'google') => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<{ user: User; needsOtpVerification: boolean; }>;
+  verifySignupOtp: (email: string, otpCode: string) => Promise<{ user: User; session: Session; }>;
+  resendSignupOtp: (email: string) => Promise<void>;
   resendVerificationEmail: (email: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -547,25 +549,10 @@ export const AuthProvider = ({
     }
   };
 
-  // 이메일/비밀번호 회원가입
+  // 이메일/비밀번호 회원가입 (OTP 방식)
   const signUpWithEmail = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
-      console.log('🔄 회원가입 시도:', { email, firstName, lastName });
-      
-      // 디버깅: 환경 정보 확인
-      if (typeof window !== 'undefined') {
-        const { debugEnvironment, validateEmailAuthFlow } = await import('@/lib/utils/debug');
-        debugEnvironment();
-        validateEmailAuthFlow();
-      }
-      
-      const callbackURL = getAuthCallbackURL('ko');
-      console.log('📧 회원가입 콜백 URL:', {
-        callbackURL,
-        isCorrectDomain: callbackURL.includes('ibridgemakers.de'),
-        hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
-        siteUrl: process.env.NEXT_PUBLIC_SITE_URL
-      });
+      console.log('🔄 OTP 방식 회원가입 시도:', { email, firstName, lastName });
       
       // 사용자 데이터 객체 생성
       const userData = {
@@ -574,18 +561,18 @@ export const AuthProvider = ({
         last_name: lastName,
       };
 
-      // 1. auth.users 테이블에 사용자 생성
+      // 1. auth.users 테이블에 사용자 생성 (OTP 방식 - 이메일 링크 없음)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: userData, // user_metadata에 데이터 저장
-          emailRedirectTo: callbackURL,
+          // emailRedirectTo 제거 - OTP 방식에서는 불필요
         },
       });
 
       if (error) {
-        console.error('❌ 회원가입 실패:', error);
+        console.error('❌ OTP 회원가입 실패:', error);
         throw error;
       }
 
@@ -593,26 +580,26 @@ export const AuthProvider = ({
         throw new Error('사용자 생성 실패');
       }
 
-      console.log('✅ Supabase 회원가입 성공:', {
+      console.log('✅ OTP 회원가입 성공 - 이메일로 6자리 코드 전송됨:', {
         userId: data.user.id,
         email: data.user.email,
-        emailRedirectTo: callbackURL,
-        needsEmailConfirmation: !data.session // 세션이 없으면 이메일 확인 필요
+        needsEmailConfirmation: !data.session // 세션이 없으면 OTP 확인 필요
       });
 
-      // 임시 데이터를 여러 저장소에 저장 (모바일 호환성 향상)
+      // 임시 데이터를 여러 저장소에 저장 (OTP 검증 완료까지 보관)
       const pendingData = {
         id: data.user.id,
         email,
         first_name: firstName,
         last_name: lastName,
-        timestamp: new Date().toISOString(), // 만료 확인용
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10분 후 만료
       };
 
       // localStorage에 저장 시도
       try {
         localStorage.setItem('pendingUserData', JSON.stringify(pendingData));
-        console.log('✅ localStorage에 임시 데이터 저장 성공');
+        console.log('✅ localStorage에 OTP 대기 데이터 저장 성공');
       } catch (error) {
         console.warn('⚠️ localStorage 저장 실패:', error);
       }
@@ -620,29 +607,129 @@ export const AuthProvider = ({
       // sessionStorage에도 백업 저장
       try {
         sessionStorage.setItem('pendingUserData', JSON.stringify(pendingData));
-        console.log('✅ sessionStorage에 임시 데이터 저장 성공');
+        console.log('✅ sessionStorage에 OTP 대기 데이터 저장 성공');
       } catch (error) {
         console.warn('⚠️ sessionStorage 저장 실패:', error);
       }
 
-      // 추가: 쿠키에도 저장 (fallback, httpOnly 아님)
-      try {
-        document.cookie = `pendingUserData=${encodeURIComponent(JSON.stringify(pendingData))}; path=/; max-age=3600; SameSite=Lax`;
-        console.log('✅ 쿠키에 임시 데이터 저장 성공');
-      } catch (error) {
-        console.warn('⚠️ 쿠키 저장 실패:', error);
-      }
-
-      console.log('✅ 회원가입 성공 - 이메일 인증 대기 중:', {
-        id: data.user.id,
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-        user_metadata: data.user.user_metadata
-      });
+      return {
+        user: data.user,
+        needsOtpVerification: true
+      };
 
     } catch (error) {
-      console.error('❌ signUpWithEmail 오류:', error);
+      console.error('❌ signUpWithEmail OTP 오류:', error);
+      throw error;
+    }
+  };
+
+  // OTP 검증 함수
+  const verifySignupOtp = async (email: string, otpCode: string) => {
+    try {
+      console.log('🔄 OTP 검증 시도:', { email, otpCode: otpCode.length + '자리' });
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpCode,
+        type: 'signup'
+      });
+
+      if (error) {
+        console.error('❌ OTP 검증 실패:', error);
+        throw error;
+      }
+
+      if (!data.user || !data.session) {
+        throw new Error('OTP 검증 후 세션 생성 실패');
+      }
+
+      console.log('✅ OTP 검증 성공:', {
+        userId: data.user.id,
+        email: data.user.email,
+        sessionId: data.session.access_token.substring(0, 10) + '...'
+      });
+
+      // 임시 저장된 사용자 데이터 확인
+      let pendingUserData = null;
+      try {
+        const localData = localStorage.getItem('pendingUserData');
+        if (localData) {
+          pendingUserData = JSON.parse(localData);
+        }
+      } catch (error) {
+        console.warn('⚠️ 임시 데이터 조회 실패:', error);
+      }
+
+      // 사용자 프로필 생성 (users 테이블에 저장)
+      if (pendingUserData) {
+        const profileData = {
+          id: data.user.id,
+          email: data.user.email,
+          first_name: pendingUserData.first_name,
+          last_name: pendingUserData.last_name,
+          user_level: 'user' as UserRole,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([profileData]);
+
+        if (insertError) {
+          console.error('❌ 프로필 생성 실패:', insertError);
+          // 프로필 생성 실패해도 인증은 완료된 상태이므로 계속 진행
+        } else {
+          console.log('✅ 사용자 프로필 생성 성공');
+        }
+      }
+
+      // 임시 데이터 삭제
+      try {
+        localStorage.removeItem('pendingUserData');
+        sessionStorage.removeItem('pendingUserData');
+        document.cookie = 'pendingUserData=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        console.log('✅ 임시 데이터 정리 완료');
+      } catch (error) {
+        console.warn('⚠️ 임시 데이터 삭제 실패:', error);
+      }
+
+      // 세션과 사용자 상태 업데이트
+      setUser(data.user);
+      setSession(data.session);
+      
+      // 프로필 로드
+      await loadUserProfile(data.user, true);
+
+      return {
+        user: data.user,
+        session: data.session
+      };
+
+    } catch (error) {
+      console.error('❌ verifySignupOtp 오류:', error);
+      throw error;
+    }
+  };
+
+  // OTP 재전송 함수
+  const resendSignupOtp = async (email: string) => {
+    try {
+      console.log('🔄 OTP 재전송 시도:', { email });
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (error) {
+        console.error('❌ OTP 재전송 실패:', error);
+        throw error;
+      }
+
+      console.log('✅ OTP 재전송 성공');
+    } catch (error) {
+      console.error('❌ resendSignupOtp 오류:', error);
       throw error;
     }
   };
@@ -824,6 +911,8 @@ export const AuthProvider = ({
     signIn,
     signInWithEmail,
     signUpWithEmail,
+    verifySignupOtp,
+    resendSignupOtp,
     resendVerificationEmail,
     resetPassword,
     signOut,

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useAuth } from '@/components/auth/AuthContext';
 import { useRouter } from "next/navigation";
-import EmailVerificationModal from './EmailVerificationModal';
+import OtpVerificationModal from './OtpVerificationModal';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -52,8 +52,6 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
   
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
-  const [verificationStatus, setVerificationStatus] = useState<'success' | 'error' | 'pending'>('pending');
-  const [verificationMessage, setVerificationMessage] = useState('');
   
   // 모달 외부 클릭 시 닫기
   useEffect(() => {
@@ -89,12 +87,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
     };
   }, [isOpen, onClose]);
 
-  // 사용자가 로그인되면 모달 닫기
+  // 사용자가 로그인되면 모달 닫기 (단, OTP 검증 중일 때는 제외)
   useEffect(() => {
-    if (user) {
+    if (user && !showVerificationModal) {
       onClose();
     }
-  }, [user, onClose]);
+  }, [user, onClose, showVerificationModal]);
   
   // 모드 변경 시 에러 초기화
   useEffect(() => {
@@ -184,31 +182,22 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
           await signInWithEmail(email, password);
         } catch (error: any) {
           console.error('❌ 로그인 실패:', error);
-          
-          // 이메일 미인증 에러 처리
-          if (error.message?.includes('이메일 인증이 완료되지 않았습니다')) {
-            setVerificationEmail(email);
-            setVerificationStatus('pending');
-            setVerificationMessage('이메일 인증이 필요합니다. 인증 이메일을 확인해주세요.');
-            setShowVerificationModal(true);
-            return;
-          }
-          
           throw error;
         }
       } else if (mode === 'register') {
-        // 회원가입 정보를 localStorage에 임시 저장
-        localStorage.setItem('tempEmail', email);
-        localStorage.setItem('tempPassword', password);
-        localStorage.setItem('tempFirstName', firstName);
-        localStorage.setItem('tempLastName', lastName);
-        
-        await signUpWithEmail(email, password, firstName, lastName);
-        setVerificationEmail(email);
-        setVerificationStatus('pending');
-        setVerificationMessage('회원가입이 완료되었습니다. 이메일 인증을 진행해주세요.');
-        setShowVerificationModal(true);
-        setError(null);
+        try {
+          const result = await signUpWithEmail(email, password, firstName, lastName);
+          
+          if (result.needsOtpVerification) {
+            console.log('✅ 회원가입 성공 - OTP 인증 필요');
+            setVerificationEmail(email);
+            setShowVerificationModal(true);
+            setError(null);
+          }
+        } catch (error: any) {
+          console.error('❌ 회원가입 실패:', error);
+          throw error;
+        }
       } else if (mode === 'forgot') {
         await resetPassword(email);
         setError("비밀번호 재설정 링크가 이메일로 전송되었습니다.");
@@ -503,16 +492,18 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
         </div>
       </div>
       
-      {/* 이메일 인증 모달 */}
-      <EmailVerificationModal
+      {/* OTP 인증 모달 */}
+      <OtpVerificationModal
         isOpen={showVerificationModal}
         onClose={() => {
           setShowVerificationModal(false);
           onClose();
         }}
-        status={verificationStatus}
-        errorMessage={verificationMessage}
         email={verificationEmail}
+        onSuccess={() => {
+          setShowVerificationModal(false);
+          onClose();
+        }}
       />
     </>
   );
