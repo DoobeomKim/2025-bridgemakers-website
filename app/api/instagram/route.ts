@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { instagramService } from '@/lib/instagram';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Instagram 피드는 2분마다 캐시 갱신
+export const revalidate = 120; // 2분
 
 export async function GET() {
   try {

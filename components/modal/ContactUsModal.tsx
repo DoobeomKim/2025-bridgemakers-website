@@ -347,38 +347,38 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
       onClick={handleOverlayClick}
     >
       <div 
-        className="w-full max-w-2xl max-h-[95vh] bg-[#0c1526] rounded-2xl overflow-hidden border border-[#1a2332] shadow-2xl"
+        className="w-full max-w-2xl max-h-[90vh] bg-[#0c1526] rounded-2xl overflow-hidden border border-[#1a2332] shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-[#1a2332]">
-          <h2 className="text-xl font-semibold text-white">서비스 문의</h2>
+        <div className="flex items-center justify-between p-4 md:p-4 border-b border-[#1a2332] flex-shrink-0">
+          <h2 className="text-lg md:text-lg font-semibold text-white">서비스 문의</h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-white hover:bg-[#1a2332] rounded-lg transition-colors"
             aria-label="닫기"
           >
-            <X size={20} />
+            <X size={18} className="md:w-4 md:h-4" />
           </button>
         </div>
 
         {/* 아이콘 영역 */}
-        <div className="flex justify-center py-6">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#cba967] to-[#b99a58] rounded-full flex items-center justify-center">
-            <MessageCircle className="w-10 h-10 text-white" />
+        <div className="flex justify-center py-3 md:py-4 flex-shrink-0">
+          <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-[#cba967] to-[#b99a58] rounded-full flex items-center justify-center">
+            <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-white" />
           </div>
         </div>
 
         {/* 안내 텍스트 */}
-        <div className="text-center px-6 pb-4">
-          <p className="text-gray-300 text-sm">
+        <div className="text-center px-4 md:px-4 pb-2 md:pb-3 flex-shrink-0">
+          <p className="text-gray-300 text-xs md:text-sm">
             프로젝트 문의를 상세히 작성해주세요
           </p>
         </div>
 
-        {/* 폼 내용 */}
-        <div className="max-h-[60vh] overflow-y-auto px-6 pb-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 폼 내용 - 스크롤 가능 영역 */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-5 pb-4">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
             {/* 문의 유형 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-3">
@@ -670,12 +670,12 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
           </form>
         </div>
 
-        {/* 제출 버튼 */}
-        <div className="p-4 border-t border-[#1a2332]">
+        {/* 제출 버튼 - 고정 영역 */}
+        <div className="p-4 md:p-4 border-t border-[#1a2332] flex-shrink-0">
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="w-full bg-[#cba967] hover:bg-[#b99a58] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center text-sm"
+            className="w-full bg-[#cba967] hover:bg-[#b99a58] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center text-sm"
           >
             {isSubmitting ? (
               <>

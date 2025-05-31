@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
+export const dynamic = 'force-dynamic';
+
 interface ContactInquiryRequest {
   inquiryType: 'quote' | 'general';
   clientType: 'individual' | 'company';

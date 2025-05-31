@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import nodemailer from 'nodemailer';
 
+export const dynamic = 'force-dynamic';
+
 // 이메일 발송을 위한 Nodemailer 설정 (Ionos SMTP 사용)
 interface EmailRequest {
   inquiryId?: string;
