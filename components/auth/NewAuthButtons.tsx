@@ -199,6 +199,67 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
     );
   }
 
+  // 모바일에서는 간소화된 프로필 바 형태
+  if (isMobile) {
+    return (
+      <>
+        <div className="flex items-center justify-between py-3 px-3 text-white bg-[rgba(203,169,103,0.05)] rounded-md">
+          {/* 프로필 정보 */}
+          <div className="flex items-center space-x-3">
+            {compatibleUserProfile?.profile_image_url ? (
+              <img 
+                src={compatibleUserProfile.profile_image_url} 
+                alt={`${compatibleUserProfile.first_name || ''} ${compatibleUserProfile.last_name || ''}`} 
+                className="w-8 h-8 rounded-full object-cover border border-[#cba967]"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-[#cba967] rounded-full flex items-center justify-center text-black font-medium">
+                {compatibleUserProfile?.first_name ? compatibleUserProfile.first_name.charAt(0).toUpperCase() : '?'}
+              </div>
+            )}
+            <span className="text-sm font-medium">
+              {compatibleUserProfile?.first_name && compatibleUserProfile?.last_name 
+                ? `${compatibleUserProfile.first_name} ${compatibleUserProfile.last_name}`
+                : compatibleUserProfile?.email?.split('@')[0] || '사용자'
+              }
+            </span>
+          </div>
+          
+          {/* 액션 버튼들 */}
+          <div className="flex items-center space-x-1 text-xs">
+            <button
+              onClick={handleProfileClick}
+              className="px-2 py-1 text-[#cba967] hover:text-white hover:bg-[rgba(203,169,103,0.2)] rounded transition-colors"
+            >
+              설정
+            </button>
+            <span className="text-gray-500">|</span>
+            <button
+              onClick={handleLogout}
+              className="px-2 py-1 text-gray-400 hover:text-white hover:bg-[rgba(255,255,255,0.1)] rounded transition-colors"
+            >
+              로그아웃
+            </button>
+          </div>
+        </div>
+        
+        {/* 프로필 설정 모달 (설정 버튼 클릭 시) */}
+        <ProfileModal 
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          user={compatibleUserProfile as UserProfile}
+        />
+        
+        <AuthLoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          initialMode="login"
+          locale={locale}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <div className="relative">

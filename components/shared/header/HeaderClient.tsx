@@ -136,6 +136,22 @@ export default function HeaderClient({ locale, translations, headerMenus }: Head
             </Link>
           ))}
           
+          {/* 인증된 사용자에게만 대시보드 링크 표시 */}
+          {isAuthenticated && (
+            <>
+              {/* 구분선 */}
+              <div className="border-t border-[#222] my-2"></div>
+              
+              <Link
+                href={`/${locale}/dashboard`}
+                className="block py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                대시보드
+              </Link>
+            </>
+          )}
+          
           {/* 구분선 */}
           <div className="border-t border-[#222] my-2"></div>
 
