@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { createServerClient } from '@/lib/supabase/server';
 import { AuthProvider } from "@/components/auth/AuthContext";
+import { Analytics } from '@vercel/analytics/react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,6 +29,7 @@ export default async function RootLayout({
         <AuthProvider initialSession={session}>
           {children}
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
