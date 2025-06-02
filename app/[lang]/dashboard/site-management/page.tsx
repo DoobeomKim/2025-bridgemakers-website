@@ -22,6 +22,9 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { UserRole } from "@/types/supabase";
 import { DraggableList } from "@/app/components/DraggableList";
 import { v4 as generateUUID } from 'uuid';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { apiRequest } from '@/lib/api/supabaseClient';
+import { supabase } from "@/lib/supabase";
 
 type Tab = {
   id: string;
@@ -50,7 +53,7 @@ const tabs: Tab[] = [
 
 export default function SiteManagementPage() {
   const router = useRouter();
-  const { userProfile, isLoading } = useAuth();
+  const { userProfile, isLoading, supabase, session } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [organizationName, setOrganizationName] = useState('BRIDGEMAKERS');
   const [organizationSlug, setOrganizationSlug] = useState('bridgemakers');
@@ -76,23 +79,48 @@ export default function SiteManagementPage() {
       setIsUpdatingLanguageSwitcher(true);
       const newState = !isLanguageSwitcherEnabled;
       
+      console.log('🚀 언어 변경 컴포넌트 설정 저장 시작...');
+      console.log('🔍 현재 상태:', { 
+        currentState: isLanguageSwitcherEnabled, 
+        newState,
+        hasSession: !!session,
+        hasToken: !!session?.access_token
+      });
+      
+      // 🎯 AuthContext의 session state를 직접 사용 (헤더 메뉴와 동일한 로직)
+      if (!session?.access_token) {
+        console.error('❌ AuthContext session에 토큰 없음');
+        throw new Error('인증 세션이 만료되었습니다. 페이지를 새로고침 해주세요.');
+      }
+
+      console.log('✅ AuthContext session 확인 완료 - API 요청 시작');
+      
       const response = await fetch('/api/settings/language-switcher', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,  // 🎯 Authorization 헤더 추가
         },
         body: JSON.stringify({ enabled: newState }),
       });
 
+      console.log('📥 언어 설정 API 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('❌ 언어 설정 API 응답 에러:', errorData);
         throw new Error(errorData.error || 'Failed to update language switcher state');
       }
 
       setIsLanguageSwitcherEnabled(newState);
+      console.log('✅ 언어 변경 컴포넌트 설정 저장 성공!');
       alert('언어 변경 컴포넌트 설정이 저장되었습니다.');
     } catch (error: any) {
-      console.error('Error updating language switcher:', error);
+      console.error('🚨 언어 변경 컴포넌트 설정 저장 실패:', error);
       alert(error.message || '언어 변경 컴포넌트 설정 업데이트에 실패했습니다.');
       // 상태를 원래대로 되돌림
       setIsLanguageSwitcherEnabled(!isLanguageSwitcherEnabled);
@@ -138,32 +166,74 @@ export default function SiteManagementPage() {
     try {
       setIsSaving(true);
 
+      console.log('🚀 메뉴 저장 시작...');
+      console.log('🔍 현재 AuthContext 상태:', {
+        hasUserProfile: !!userProfile,
+        userEmail: userProfile?.email,
+        userLevel: userProfile?.user_level,
+        isLoading,
+        hasSession: !!session,
+        hasSessionUser: !!session?.user,
+        hasSessionToken: !!session?.access_token,
+        sessionUserId: session?.user?.id
+      });
+
       // 메뉴 순서 인덱스 업데이트
       const sortedMenus = headerMenus.map((menu, index) => ({
         ...menu,
         orderIndex: index + 1
       }));
 
-      // 메뉴 데이터 저장
+      console.log('🎯 AuthContext session 직접 사용');
+      
+      // 🎯 AuthContext의 session state를 직접 사용!
+      if (!session?.access_token) {
+        console.error('❌ AuthContext session에 토큰 없음:', {
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          sessionUser: session?.user?.id
+        });
+        throw new Error('인증 세션이 만료되었습니다. 페이지를 새로고침 해주세요.');
+      }
+
+      console.log('✅ AuthContext session 확인 완료 - API 요청 시작');
+      console.log('📤 API 요청 정보:', {
+        url: '/api/menus',
+        method: 'PUT',
+        menusCount: sortedMenus.length,
+        hasAuthHeader: true,
+        tokenLength: session.access_token.length,
+        userId: session.user?.id
+      });
+
       const menuResponse = await fetch('/api/menus', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(sortedMenus),
       });
 
+      console.log('📥 API 응답 정보:', {
+        status: menuResponse.status,
+        statusText: menuResponse.statusText,
+        ok: menuResponse.ok
+      });
+
       if (!menuResponse.ok) {
         const errorData = await menuResponse.json();
+        console.error('❌ API 응답 에러:', errorData);
         throw new Error(errorData.error || '메뉴 업데이트에 실패했습니다.');
       }
 
       const { data: updatedMenus } = await menuResponse.json();
       setHeaderMenus(updatedMenus);
       setInitialHeaderMenus(updatedMenus);
+      console.log('✅ 메뉴 저장 성공!');
       alert('메뉴 설정이 저장되었습니다.');
     } catch (error: any) {
-      console.error('설정 저장 실패:', error);
+      console.error('🚨 설정 저장 실패:', error);
       alert(error.message || '저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSaving(false);

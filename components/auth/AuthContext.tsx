@@ -64,6 +64,108 @@ export const AuthProvider = ({
   // 클라이언트 컴포넌트에서 직접 Supabase 클라이언트 생성
   const supabase = createClientComponentClient<Database>();
 
+  // 세션 상태 체크 함수
+  const checkSession = async () => {
+    try {
+      // 이미 세션이 있다면 불필요한 체크 스킵
+      if (session?.user && userProfile) {
+        console.log('✅ 유효한 세션 존재 - 체크 스킵');
+        return;
+      }
+
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      
+      if (error) throw error;
+      
+      console.log('🔍 세션 상태 확인:', {
+        hasSession: !!currentSession,
+        userId: currentSession?.user?.id
+      });
+      
+      if (currentSession?.user) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await loadUserProfile(currentSession.user);
+      } else {
+        setSession(null);
+        setUser(null);
+        setUserProfile(null);
+      }
+    } catch (error) {
+      console.error('❌ 세션 체크 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 사용자 액션에 따른 세션 체크
+  useEffect(() => {
+    console.log('🔄 세션 체크 이벤트 리스너 설정...');
+
+    // 페이지 새로고침 전 세션 체크
+    const handleBeforeUnload = () => {
+      console.log('🔄 페이지 새로고침 - 세션 체크');
+    };
+
+    // 온라인 상태 변경 시 세션 체크
+    const handleOnline = () => {
+      console.log('🌐 온라인 상태 복귀 - 세션 체크');
+      checkSession();
+    };
+
+    // 브라우저 네비게이션(뒤로가기/앞으로가기) 시 세션 체크
+    const handleNavigation = () => {
+      console.log('🔙 브라우저 네비게이션 - 세션 체크');
+      checkSession();
+    };
+
+    // 이벤트 리스너 등록
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('popstate', handleNavigation);
+
+    // 초기 세션 체크
+    checkSession();
+
+    // 클린업
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('popstate', handleNavigation);
+    };
+  }, []);
+
+  // Auth 상태 변경 감지 (로그인/로그아웃 이벤트만)
+  useEffect(() => {
+    console.log('🔐 Auth 이벤트 리스너 설정...');
+    
+    const {
+      data: { subscription: authListener },
+    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log('🔔 Auth 이벤트 발생:', event, {
+        hasSession: !!currentSession,
+        userId: currentSession?.user?.id
+      });
+      
+      // 로그인/로그아웃 이벤트만 처리
+      if (['SIGNED_IN', 'SIGNED_OUT'].includes(event)) {
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
+        
+        if (currentSession?.user) {
+          await loadUserProfile(currentSession.user);
+        } else {
+          setUserProfile(null);
+        }
+      }
+    });
+
+    return () => {
+      console.log('🔄 Auth 이벤트 리스너 정리...');
+      authListener.unsubscribe();
+    };
+  }, []);
+
   // 브라우저 데이터 초기화 (쿠키, 로컬 스토리지)
   const clearBrowserData = () => {
     try {
@@ -321,142 +423,6 @@ export const AuthProvider = ({
       setIsLoading(false);
     }
   };
-
-  // 인증 상태 변경 감지
-  useEffect(() => {
-    let mounted = true;
-    console.log('🚀 AuthProvider 초기화', { 
-      initialSession: !!initialSession,
-      environment: process.env.NODE_ENV
-    });
-    
-    // 개발환경에서만 상세 환경 정보 로그
-    if (isDevelopment()) {
-      logEnvironmentInfo();
-    }
-    
-    // 초기 로딩 상태 설정
-    setIsLoading(true);
-
-    // 🔧 개선된 캐시 확인 로직
-    if (typeof window !== 'undefined' && initialSession?.user) {
-      const cachedProfile = localStorage.getItem('userProfile');
-      if (cachedProfile) {
-        try {
-          const { data, timestamp, expiresIn } = JSON.parse(cachedProfile);
-          const isExpired = Date.now() - timestamp > expiresIn;
-          
-          if (!isExpired && mounted && data.id === initialSession.user.id) {
-            console.log('✅ 캐시된 프로필 정보 사용 (세션처럼 활용):', { 
-              userId: data.id, 
-              email: data.email,
-              firstName: data.first_name,
-              lastName: data.last_name,
-              cacheAge: Math.round((Date.now() - timestamp) / 1000) + '초',
-              environment: process.env.NODE_ENV 
-            });
-            setUserProfile(data as UserProfile);
-            setIsLoading(false);
-            return; // 캐시 사용 시 DB 쿼리 완전 스킵
-          } else {
-            console.log('🗑️ 캐시 만료 또는 다른 사용자 - 캐시 삭제 후 새로 로드');
-            localStorage.removeItem('userProfile');
-          }
-        } catch (error) {
-          console.error('❌ 캐시 파싱 오류:', error);
-          localStorage.removeItem('userProfile');
-        }
-      } else {
-        console.log('📭 캐시된 프로필 정보 없음 - DB에서 새로 로드 필요');
-      }
-    }
-    
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, newSession: Session | null) => {
-      console.log('🔄 인증 상태 변경:', event, { 
-        hasUser: !!newSession?.user,
-        userId: newSession?.user?.id,
-        environment: process.env.NODE_ENV,
-        origin: typeof window !== 'undefined' ? window.location.origin : 'server'
-      });
-      
-      if (mounted) {
-        setSession(newSession);
-        setUser(newSession?.user || null);
-        
-        // 로그아웃 처리
-        if (!newSession?.user || event === 'SIGNED_OUT') {
-          console.log('🚪 로그아웃 상태 처리');
-          setUserProfile(null);
-          setIsLoading(false);
-          // 로그아웃 시 캐시 삭제
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('userProfile');
-          }
-          return;
-        }
-        
-        // 로그인 관련 이벤트에서 프로필 로드
-        if (['SIGNED_IN', 'USER_UPDATED', 'TOKEN_REFRESHED'].includes(event)) {
-          console.log('📥 프로필 새로 로드:', event);
-          
-          // 🎯 TOKEN_REFRESHED나 USER_UPDATED 시에도 캐시 우선 체크
-          if ((event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && typeof window !== 'undefined') {
-            const cachedProfile = localStorage.getItem('userProfile');
-            if (cachedProfile) {
-              try {
-                const { data, timestamp, expiresIn } = JSON.parse(cachedProfile);
-                const isExpired = Date.now() - timestamp > expiresIn;
-                
-                if (!isExpired && data.id === newSession.user.id) {
-                  console.log('🎯 ' + event + ' - 캐시 활용으로 DB 쿼리 스킵:', {
-                    userId: data.id,
-                    event: event,
-                    cacheAge: Math.round((Date.now() - timestamp) / 1000) + '초'
-                  });
-                  
-                  // 이메일 인증 상태는 user_metadata.email_verified만 사용
-                  const isEmailVerified = newSession.user.user_metadata?.email_verified || false;
-                  const userProfileData = {
-                    ...data,
-                    email_confirmed_at: isEmailVerified ? new Date().toISOString() : null
-                  };
-                  
-                  setUserProfile(userProfileData as UserProfile);
-                  setIsLoading(false);
-                  return; // 캐시 사용으로 DB 쿼리 스킵
-                } else {
-                  console.log('🗑️ ' + event + ' - 캐시 만료 또는 다른 사용자');
-                  localStorage.removeItem('userProfile');
-                }
-              } catch (error) {
-                console.error('❌ ' + event + ' - 캐시 파싱 오류:', error);
-                localStorage.removeItem('userProfile');
-              }
-            }
-          }
-          
-          // 캐시가 없거나 SIGNED_IN인 경우에만 DB에서 로드
-          console.log('📡 ' + event + ' - DB에서 프로필 로드 실행');
-          await loadUserProfile(newSession.user);
-        }
-      }
-    });
-
-    // 초기 사용자 프로필 로드 (캐시가 없는 경우만)
-    if (initialSession?.user && mounted) {
-      console.log('🔄 초기 프로필 로드 시작');
-      loadUserProfile(initialSession.user);
-    } else if (!initialSession?.user) {
-      setIsLoading(false);
-    }
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [initialSession, supabase]);
 
   // OAuth 로그인
   const signIn = async (provider: 'google') => {
