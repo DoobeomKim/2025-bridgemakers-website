@@ -20,28 +20,13 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const locale = validateLocale(langCode);
   const translations = getTranslations(locale, "dashboard");
 
-  // userProfile을 compatibleUserProfile로 변환 (메인페이지와 동일한 조건)
-  const compatibleUserProfile = userProfile && user ? {
-    id: userProfile.id,
-    email: userProfile.email,
-    first_name: userProfile.first_name,
-    last_name: userProfile.last_name,
-    profile_image_url: userProfile.profile_image_url,
-    user_level: userProfile.user_level,
-    company_name: userProfile.company_name,
-    created_at: userProfile.created_at,
-    updated_at: userProfile.updated_at,
-    // 이메일 인증 상태는 user_metadata.email_verified만 사용
-    email_confirmed_at: user.user_metadata?.email_verified ? new Date().toISOString() : null
-  } : null;
-
   // 초기 1초 대기 처리
   useEffect(() => {
-    console.log('⏰ 대시보드 진입 - 2초 대기 시작 (안정적인 인증 체크를 위해)...');
+    console.log('⏰ 대시보드 진입 - 1초 대기 시작...');
     const timer = setTimeout(() => {
-      console.log('✅ 2초 대기 완료 - 인증 체크 시작');
+      console.log('✅ 1초 대기 완료 - 인증 체크 시작');
       setInitialWaitComplete(true);
-    }, 2000); // 1초 → 2초로 변경
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -49,24 +34,26 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   // 대시보드 접근 상태 디버깅
   useEffect(() => {
     if (initialWaitComplete) {
+      const isAuthenticatedForDashboard = userProfile && user && (
+        userProfile.id === user.id && 
+        user.user_metadata?.email_verified
+      );
+
       console.log('🏠 DashboardLayout: 인증 상태 확인', {
         initialWaitComplete,
         isLoading,
         hasUser: !!user,
         hasUserProfile: !!userProfile,
-        hasCompatibleProfile: !!compatibleUserProfile,
-        userId: user?.id,
-        profileId: userProfile?.id,
-        compatibleId: compatibleUserProfile?.id,
-        shouldRedirect: !isLoading && (!user || !userProfile || !compatibleUserProfile)
+        isEmailVerified: user?.user_metadata?.email_verified,
+        isAuthenticated: isAuthenticatedForDashboard
       });
     }
-  }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile]);
+  }, [initialWaitComplete, isLoading, user, userProfile]);
 
-  // 인증되지 않은 사용자는 홈페이지로 리다이렉트 (2초 대기 후)
+  // 인증되지 않은 사용자는 홈페이지로 리다이렉트
   useEffect(() => {
     const redirectUnauthorized = async () => {
-      // 초기 2초 대기가 완료되지 않았으면 대기
+      // 초기 1초 대기가 완료되지 않았으면 대기
       if (!initialWaitComplete) {
         return;
       }
@@ -76,22 +63,15 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
         console.log('⏳ 아직 로딩 중이므로 리다이렉트 대기...');
         return;
       }
-      
-      // 더 안전한 조건: user가 명확히 null이고 로딩도 완료된 경우만 리다이렉트
-      if (!user) {
-        console.log('🚫 사용자 정보 없음 - 홈페이지로 리다이렉트');
-        router.push(`/${locale}`);
-        return;
-      }
 
-      // userProfile이 없지만 user는 있는 경우, 더 기다려보기
-      if (!userProfile || !compatibleUserProfile) {
-        console.log('⚠️ 프로필 로딩 중이거나 실패 - 추가 대기 중...', {
-          hasUser: !!user,
-          hasUserProfile: !!userProfile,
-          hasCompatibleProfile: !!compatibleUserProfile
-        });
-        // 이 경우에는 리다이렉트하지 않고 더 기다림
+      const isAuthenticatedForDashboard = userProfile && user && (
+        userProfile.id === user.id && 
+        user.user_metadata?.email_verified
+      );
+      
+      if (!isAuthenticatedForDashboard) {
+        console.log('🚫 인증 실패 또는 이메일 미인증 - 홈페이지로 리다이렉트');
+        router.push(`/${locale}`);
         return;
       }
       
@@ -99,9 +79,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     };
 
     redirectUnauthorized();
-  }, [initialWaitComplete, isLoading, user, userProfile, compatibleUserProfile, locale, router]);
+  }, [initialWaitComplete, isLoading, user, userProfile, locale, router]);
 
-  // 초기 2초 대기 중일 때 로딩 화면 표시
+  // 초기 1초 대기 중일 때 로딩 화면 표시
   if (!initialWaitComplete) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0d1526]">
@@ -127,11 +107,16 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   }
 
   // 인증되지 않은 상태일 때 (리다이렉트 전까지 잠시 표시)
-  if (!user || !userProfile || !compatibleUserProfile) {
+  const isAuthenticatedForDashboard = userProfile && user && (
+    userProfile.id === user.id && 
+    user.user_metadata?.email_verified
+  );
+
+  if (!isAuthenticatedForDashboard) {
     console.log('🚫 인증 실패 상태 - 리다이렉트 대기 중...', {
       hasUser: !!user,
       hasUserProfile: !!userProfile,
-      hasCompatibleProfile: !!compatibleUserProfile
+      isEmailVerified: user?.user_metadata?.email_verified
     });
     return (
       <div className="flex items-center justify-center h-screen bg-[#0d1526]">

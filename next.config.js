@@ -9,7 +9,8 @@ const nextConfig = {
       'scontent-iad3-2.cdninstagram.com',
       'graph.instagram.com',
       'instagram.fcgk30-1.fna.fbcdn.net',
-      'lufykgdnccogkmwjcwyk.supabase.co'
+      'lufykgdnccogkmwjcwyk.supabase.co',
+      'images.unsplash.com'
     ],
     minimumCacheTTL: 60,
     // 이미지 최적화 설정 추가
