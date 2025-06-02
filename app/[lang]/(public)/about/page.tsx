@@ -1,8 +1,10 @@
 import { Locale } from '@/lib/i18n';
-import WeAreSection from './components/WeAreSection';
-import OurStorySection from './components/OurStorySection';
-import OurOfficesSection from './components/OurOfficesSection';
-import ContactBanner from './components/ContactBanner';
+import HeroIntroSection from './components/HeroIntroSection';
+import AboutUsSection from './components/AboutUsSection';
+import MissionValueSection from './components/MissionValueSection';
+import TeamSection from './components/TeamSection';
+import CtaSection from './components/CtaSection';
+// import OurOfficesSection from './components/OurOfficesSection';
 
 interface AboutPageProps {
   params: {
@@ -10,20 +12,15 @@ interface AboutPageProps {
   };
 }
 
-export default async function AboutPage({ params: { lang } }: AboutPageProps) {
+export default function AboutPage({ params: { lang } }: AboutPageProps) {
   return (
-    <main className="min-h-screen">
-      {/* We Are Section */}
-      <WeAreSection />
-      
-      {/* Our Story Section */}
-      <OurStorySection />
-      
-      {/* Our Offices Section */}
-      <OurOfficesSection />
-      
-      {/* Contact Banner */}
-      <ContactBanner locale={lang} />
+    <main>
+      <HeroIntroSection />
+      <AboutUsSection />
+      <MissionValueSection />
+      <TeamSection />
+      <CtaSection />
+      {/* <OurOfficesSection /> */}
     </main>
   );
 } 
