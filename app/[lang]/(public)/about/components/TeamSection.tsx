@@ -75,15 +75,15 @@ export default function TeamSection() {
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-200/50 to-amber-300/50 rounded-full -translate-y-12 translate-x-12 group-hover:scale-150 transition-transform duration-700"></div>
                 
                 {/* 아바타 섹션 */}
-                <div className="flex items-start space-x-4 sm:space-x-5 mb-6">
+                <div className="flex items-start space-x-4 sm:space-x-6 mb-6">
                   <div className="relative">
-                    <div className="w-20 h-20 rounded-xl overflow-hidden shadow-md">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-lg">
                       <Image
                         src={member.image}
                         alt={`${member.name}의 프로필 사진`}
-                        width={80}
-                        height={80}
-                        className="object-cover w-full h-full"
+                        width={112}
+                        height={112}
+                        className="object-cover w-full h-full hover:scale-105 transition-transform duration-300"
                         unoptimized
                       />
                     </div>
