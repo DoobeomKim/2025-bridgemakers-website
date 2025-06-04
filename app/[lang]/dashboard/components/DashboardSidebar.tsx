@@ -170,6 +170,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
             isOpen={isProfileModalOpen}
             onClose={() => setIsProfileModalOpen(false)}
             user={userProfile}
+            locale={locale}
           />
         )}
       </>
@@ -243,6 +244,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
           user={userProfile}
+          locale={locale}
         />
       )}
     </>

@@ -120,6 +120,7 @@ export default function DashboardHeader({ locale, translations }: HeaderProps) {
                 isOpen={isProfileModalOpen}
                 onClose={() => setIsProfileModalOpen(false)}
                 user={userProfile}
+                locale={locale}
               />
             </div>
           ) : (

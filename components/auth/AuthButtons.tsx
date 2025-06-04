@@ -163,6 +163,7 @@ const AuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
           user={userProfile}
+          locale={locale}
         />
       </div>
       <LoginModal

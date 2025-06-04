@@ -3,14 +3,17 @@
 import { useState, useEffect, useRef } from "react";
 import { XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useAuth, UserProfile } from '@/components/auth/AuthContext';
+import { useMessages } from '@/hooks/useMessages';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfile | null;
+  locale: string;
 }
 
-const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
+const ProfileModal = ({ isOpen, onClose, user, locale }: ProfileModalProps) => {
+  const messages = useMessages();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -205,7 +208,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
       if (imageFile) {
         const imageResult = await uploadProfileImage(user.id, imageFile);
         if (!imageResult.success) {
-          throw new Error(imageResult.error || "프로필 이미지 업로드에 실패했습니다.");
+          throw new Error(imageResult.error || messages?.profile?.modal?.error?.imageUpload || "프로필 이미지 업로드에 실패했습니다.");
         }
       }
 
@@ -213,11 +216,11 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
       if (Object.keys(updates).length > 0) {
         const result = await updateUserProfile(user.id, updates);
         if (!result.success) {
-          throw new Error(result.error || "프로필 업데이트에 실패했습니다.");
+          throw new Error(result.error || messages?.profile?.modal?.error?.update || "프로필 업데이트에 실패했습니다.");
         }
       }
 
-      setSuccess("프로필이 성공적으로 업데이트 되었습니다.");
+      setSuccess(messages?.profile?.modal?.success || "프로필이 성공적으로 업데이트 되었습니다.");
       
       // 성공 메시지 표시 후 2초 후 모달 닫기
       setTimeout(() => {
@@ -245,12 +248,12 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
       >
         {/* 모달 헤더 */}
         <div className="flex justify-between items-center p-5 border-b border-[rgba(255,255,255,0.1)]">
-          <div className="font-bold text-xl text-white">프로필 설정</div>
+          <div className="font-bold text-xl text-white">{messages?.profile?.modal?.title || '프로필 설정'}</div>
           <button 
             onClick={onClose}
-            className="text-[#C7C7CC] hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
         
@@ -280,7 +283,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
                 {profileImage ? (
                   <img
                     src={profileImage}
-                    alt="프로필 이미지"
+                    alt={messages?.profile?.modal?.imageUpload || "프로필 이미지"}
                     className="w-24 h-24 rounded-full object-cover border-2 border-[#cba967] group-hover:border-white transition-colors"
                   />
                 ) : (
@@ -289,7 +292,7 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
                   </div>
                 )}
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-white text-sm">사진 변경</span>
+                  <span className="text-white text-sm">{messages?.profile?.modal?.imageUpload || '사진 변경'}</span>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -300,78 +303,80 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
                 />
               </div>
               <p className="text-[#C7C7CC] text-sm mt-2">
-                프로필 이미지를 클릭하여 변경하세요
+                {messages?.profile?.modal?.imageUpload || '프로필 이미지를 클릭하여 변경하세요'}
               </p>
             </div>
             
             {/* 이름 */}
             <div>
-              <label className="block text-[#C7C7CC] text-sm mb-1">이름</label>
+              <label className="block text-[#C7C7CC] text-sm mb-1">{messages?.profile?.modal?.firstName || '이름'}</label>
               <input
                 type="text"
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                placeholder="이름"
+                placeholder={messages?.profile?.modal?.firstNamePlaceholder || '이름'}
               />
             </div>
             
             {/* 성 */}
             <div>
-              <label className="block text-[#C7C7CC] text-sm mb-1">성</label>
+              <label className="block text-[#C7C7CC] text-sm mb-1">{messages?.profile?.modal?.lastName || '성'}</label>
               <input
                 type="text"
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                placeholder="성"
+                placeholder={messages?.profile?.modal?.lastNamePlaceholder || '성'}
               />
             </div>
             
             {/* 회사명 */}
             <div>
-              <label className="block text-[#C7C7CC] text-sm mb-1">회사명</label>
+              <label className="block text-[#C7C7CC] text-sm mb-1">{messages?.profile?.modal?.companyName || '회사명'}</label>
               <input
                 type="text"
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleChange}
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#cba967] focus:border-transparent"
-                placeholder="회사명"
+                placeholder={messages?.profile?.modal?.companyNamePlaceholder || '회사명'}
               />
             </div>
             
             {/* 이메일 (읽기 전용) */}
             <div>
-              <label className="block text-[#C7C7CC] text-sm mb-1">이메일</label>
+              <label className="block text-[#C7C7CC] text-sm mb-1">{messages?.profile?.modal?.email || '이메일'}</label>
               <input
                 type="email"
                 value={user?.email || ""}
                 readOnly
                 disabled
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-gray-400 cursor-not-allowed"
-                placeholder="이메일"
+                placeholder={messages?.profile?.modal?.emailPlaceholder || '이메일'}
               />
-              <p className="text-xs text-[#C7C7CC] mt-1">이메일은 변경할 수 없습니다</p>
+              <p className="text-xs text-[#C7C7CC] mt-1">{messages?.profile?.modal?.emailReadOnly || '이메일은 변경할 수 없습니다'}</p>
             </div>
             
             {/* 가입일 (읽기 전용) */}
             <div>
-              <label className="block text-[#C7C7CC] text-sm mb-1">가입일</label>
+              <label className="block text-[#C7C7CC] text-sm mb-1">{messages?.profile?.modal?.joinDate || '가입일'}</label>
               <input
                 type="text"
                 value={user?.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR', {
                   year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : ""}
+                  month: '2-digit',
+                  day: '2-digit'
+                }).split(' ').join('').replace(/\./g, '') // "2025 06 04" -> "20250604"
+                  .replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3') // "20250604" -> "2025.06.04"
+                  : ""}
                 readOnly
                 disabled
                 className="w-full py-3 px-4 bg-[#0d1526] border border-[rgba(255,255,255,0.1)] rounded-lg text-gray-400 cursor-not-allowed"
               />
-              <p className="text-xs text-[#C7C7CC] mt-1">가입일은 변경할 수 없습니다.</p>
+              <p className="text-xs text-[#C7C7CC] mt-1">{messages?.profile?.modal?.joinDateReadOnly || '가입일은 변경할 수 없습니다.'}</p>
             </div>
             
             {/* 저장 버튼 */}
@@ -393,7 +398,10 @@ const ProfileModal = ({ isOpen, onClose, user }: ProfileModalProps) => {
                 ) : (
                   <CheckIcon className="h-5 w-5 mr-1" />
                 )}
-                {isLoading ? "저장 중..." : "변경사항 저장"}
+                {isLoading 
+                  ? (messages?.profile?.modal?.saving || "저장 중...") 
+                  : (messages?.profile?.modal?.save || "변경사항 저장")
+                }
               </button>
             </div>
           </form>

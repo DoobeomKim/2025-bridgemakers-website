@@ -50,8 +50,6 @@ export async function GET() {
     // 🎯 Service Role 사용으로 통일
     const adminSupabase = createAdminClient();
     
-    console.log('🔍 언어 변경 컴포넌트 설정 조회 중...');
-    
     const { data, error } = await adminSupabase
       .from('settings')
       .select('value')
@@ -61,7 +59,6 @@ export async function GET() {
     if (error) {
       // 데이터가 없는 경우 기본값 반환
       if (error.code === 'PGRST116') {
-        console.log('📝 기본값 사용: 언어 변경 컴포넌트 활성화');
         return NextResponse.json({ enabled: true });
       }
       console.error('❌ 언어 설정 조회 에러:', error);
@@ -69,7 +66,6 @@ export async function GET() {
     }
 
     const enabled = data.value === true;
-    console.log('✅ 언어 변경 컴포넌트 설정 조회 성공:', { enabled });
 
     return NextResponse.json({ enabled });
   } catch (error) {
@@ -83,8 +79,6 @@ export async function GET() {
 // 언어 변경 컴포넌트 상태 업데이트
 export async function PUT(request: Request) {
   try {
-    console.log('🚀 언어 변경 컴포넌트 설정 업데이트 시작...');
-    
     // 🎯 헤더 메뉴와 동일한 인증 체크
     const authResult = await checkAuth(request);
     if ('error' in authResult) {
@@ -96,7 +90,6 @@ export async function PUT(request: Request) {
     }
 
     const { enabled } = await request.json();
-    console.log('📝 설정 값:', { enabled, type: typeof enabled });
 
     // 🎯 Service Role 사용으로 RLS 우회 (헤더 메뉴와 동일)
     const adminSupabase = createAdminClient();
@@ -117,8 +110,6 @@ export async function PUT(request: Request) {
       console.error('❌ 언어 설정 업데이트 에러:', error);
       throw error;
     }
-
-    console.log('✅ 언어 변경 컴포넌트 설정 업데이트 성공');
 
     return NextResponse.json({
       success: true,

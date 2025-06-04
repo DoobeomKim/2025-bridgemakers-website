@@ -6,6 +6,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useAuth } from '@/components/auth/AuthContext';
 import { useRouter } from "next/navigation";
 import OtpVerificationModal from './OtpVerificationModal';
+import { useMessages } from '@/hooks/useMessages';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface FormErrors {
 }
 
 const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: LoginModalProps) => {
+  const messages = useMessages();
   // 현재 모드 (로그인, 회원가입, 비밀번호 찾기)
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   
@@ -56,6 +58,9 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
   // 모달 외부 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // OTP 인증 모달이 열려있을 때는 외부 클릭 무시
+      if (showVerificationModal) return;
+      
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         onClose();
       }
@@ -68,11 +73,14 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, showVerificationModal]);
   
   // ESC 키로 모달 닫기
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
+      // OTP 인증 모달이 열려있을 때는 ESC 키 무시
+      if (showVerificationModal) return;
+      
       if (event.key === 'Escape') {
         onClose();
       }
@@ -85,7 +93,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
     return () => {
       document.removeEventListener('keydown', handleEscKey);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, showVerificationModal]);
 
   // 사용자가 로그인되면 모달 닫기 (단, OTP 검증 중일 때는 제외)
   useEffect(() => {
@@ -121,20 +129,20 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
     
     // 이메일 검증
     if (!email) {
-      errors.email = '이메일을 입력해주세요.';
+      errors.email = messages.auth.login.modal.emailError;
       isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      errors.email = '유효한 이메일 형식이 아닙니다.';
+      errors.email = messages.auth.login.modal.emailInvalid;
       isValid = false;
     }
     
     // 비밀번호 검증
     if (mode !== 'forgot') {
       if (!password) {
-        errors.password = '비밀번호를 입력해주세요.';
+        errors.password = messages.auth.login.modal.passwordError;
         isValid = false;
       } else if (password.length < 6) {
-        errors.password = '비밀번호는 최소 6자 이상이어야 합니다.';
+        errors.password = messages.auth.login.modal.passwordInvalid;
         isValid = false;
       }
     }
@@ -142,25 +150,25 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
     // 회원가입 모드일 때 추가 검증
     if (mode === 'register') {
       if (!firstName) {
-        errors.firstName = '이름을 입력해주세요.';
+        errors.firstName = messages.auth.login.register.firstNameError;
         isValid = false;
       }
       
       if (!lastName) {
-        errors.lastName = '성을 입력해주세요.';
+        errors.lastName = messages.auth.login.register.lastNameError;
         isValid = false;
       }
       
       if (!confirmPassword) {
-        errors.confirmPassword = '비밀번호 확인을 입력해주세요.';
+        errors.confirmPassword = messages.auth.login.register.confirmPasswordError;
         isValid = false;
       } else if (password !== confirmPassword) {
-        errors.confirmPassword = '비밀번호가 일치하지 않습니다.';
+        errors.confirmPassword = messages.auth.login.register.confirmPasswordMismatch;
         isValid = false;
       }
       
       if (!agreeTerms) {
-        errors.terms = '이용약관에 동의해주세요.';
+        errors.terms = messages.auth.login.register.termsError;
         isValid = false;
       }
     }
@@ -182,6 +190,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
           await signInWithEmail(email, password);
         } catch (error: any) {
           console.error('❌ 로그인 실패:', error);
+          setError(messages.auth.login.modal.error);
           throw error;
         }
       } else if (mode === 'register') {
@@ -196,15 +205,23 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
           }
         } catch (error: any) {
           console.error('❌ 회원가입 실패:', error);
+          setError(messages.auth.login.register.error);
           throw error;
         }
       } else if (mode === 'forgot') {
-        await resetPassword(email);
-        setError("비밀번호 재설정 링크가 이메일로 전송되었습니다.");
+        try {
+          await resetPassword(email);
+          setError(null);
+          alert(messages.auth.login.forgot.success);
+          setMode('login');
+        } catch (error: any) {
+          console.error('❌ 비밀번호 재설정 실패:', error);
+          setError(messages.auth.login.forgot.error);
+          throw error;
+        }
       }
     } catch (error: any) {
-      console.error(`❌ ${mode} 실패:`, error);
-      setError(error.message || `${mode} 처리 중 오류가 발생했습니다.`);
+      console.error('처리 중 오류 발생:', error);
     } finally {
       setIsLoading(false);
     }
@@ -214,7 +231,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
   
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 overflow-y-auto">
+      <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 overflow-y-auto ${showVerificationModal ? 'pointer-events-none' : ''}`}>
         <div 
           ref={modalRef}
           className="relative bg-[#050a16] rounded-xl w-full max-w-md mx-4 shadow-xl animate-fadeIn border border-[#1f2937]"
@@ -239,16 +256,16 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
           <div className="p-8">
             {/* 모달 제목 */}
             <h2 className="text-2xl font-bold text-white mb-6 text-center">
-              {mode === 'login' ? '환영합니다' : 
-               mode === 'register' ? '계정 만들기' : 
-               '비밀번호 찾기'}
+              {mode === 'login' ? messages.auth.login.modal.title : 
+               mode === 'register' ? messages.auth.login.register.title : 
+               messages.auth.login.forgot.title}
             </h2>
             
             {/* 부제목 */}
             <p className="text-center text-[#C7C7CC] mb-6">
-              {mode === 'login' ? '계정에 로그인하여 브릿지메이커스의 서비스를 이용하세요' : 
-               mode === 'register' ? '브릿지메이커스에 가입하고 서비스를 이용하세요' : 
-               '비밀번호를 재설정할 이메일을 입력하세요'}
+              {mode === 'login' ? messages.auth.login.modal.description : 
+               mode === 'register' ? messages.auth.login.register.description : 
+               messages.auth.login.forgot.description}
             </p>
             
             {/* 에러 메시지 */}
@@ -265,12 +282,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-[#C7C7CC] mb-1">이름 <span className="text-[#cba967]">*</span></label>
+                      <label htmlFor="firstName" className="block text-sm font-medium text-[#C7C7CC] mb-1">{messages.auth.login.register.firstNameLabel}</label>
                       <input
                         type="text"
                         id="firstName"
                         className="w-full bg-[#131f36] border border-[rgba(255,255,255,0.1)] rounded-lg py-2 px-3 text-white focus:ring-[#cba967] focus:border-[#cba967] transition"
-                        placeholder="이름"
+                        placeholder={messages.auth.login.register.firstNamePlaceholder}
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         disabled={isLoading}
@@ -279,12 +296,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                     </div>
                     
                     <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-[#C7C7CC] mb-1">성 <span className="text-[#cba967]">*</span></label>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-[#C7C7CC] mb-1">{messages.auth.login.register.lastNameLabel}</label>
                       <input
                         type="text"
                         id="lastName"
                         className="w-full bg-[#131f36] border border-[rgba(255,255,255,0.1)] rounded-lg py-2 px-3 text-white focus:ring-[#cba967] focus:border-[#cba967] transition"
-                        placeholder="성"
+                        placeholder={messages.auth.login.register.lastNamePlaceholder}
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         disabled={isLoading}
@@ -297,12 +314,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
               
               {/* 이메일 필드 */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-[#C7C7CC] mb-1">이메일 {mode === 'register' && <span className="text-[#cba967]">*</span>}</label>
+                <label htmlFor="email" className="block text-sm font-medium text-[#C7C7CC] mb-1">{messages.auth.login.modal.emailLabel} {mode === 'register' && <span className="text-[#cba967]">*</span>}</label>
                 <input
                   type="email"
                   id="email"
                   className="w-full bg-[#131f36] border border-[rgba(255,255,255,0.1)] rounded-lg py-2 px-3 text-white focus:ring-[#cba967] focus:border-[#cba967] transition"
-                  placeholder="이메일 주소"
+                  placeholder={messages.auth.login.modal.emailPlaceholder}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
@@ -313,12 +330,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
               {/* 비밀번호 필드 */}
               {mode !== 'forgot' && (
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-[#C7C7CC] mb-1">비밀번호 {mode === 'register' && <span className="text-[#cba967]">*</span>}</label>
+                  <label htmlFor="password" className="block text-sm font-medium text-[#C7C7CC] mb-1">{messages.auth.login.modal.passwordLabel} {mode === 'register' && <span className="text-[#cba967]">*</span>}</label>
                   <input
                     type="password"
                     id="password"
                     className="w-full bg-[#131f36] border border-[rgba(255,255,255,0.1)] rounded-lg py-2 px-3 text-white focus:ring-[#cba967] focus:border-[#cba967] transition"
-                    placeholder="비밀번호"
+                    placeholder={messages.auth.login.modal.passwordPlaceholder}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
@@ -330,12 +347,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
               {/* 비밀번호 확인 필드 */}
               {mode === 'register' && (
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#C7C7CC] mb-1">비밀번호 확인 <span className="text-[#cba967]">*</span></label>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#C7C7CC] mb-1">{messages.auth.login.register.confirmPasswordLabel} <span className="text-[#cba967]">*</span></label>
                   <input
                     type="password"
                     id="confirmPassword"
                     className="w-full bg-[#131f36] border border-[rgba(255,255,255,0.1)] rounded-lg py-2 px-3 text-white focus:ring-[#cba967] focus:border-[#cba967] transition"
-                    placeholder="비밀번호 확인"
+                    placeholder={messages.auth.login.register.confirmPasswordPlaceholder}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isLoading}
@@ -357,7 +374,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                   </div>
                   <div className="ml-3 text-sm">
                     <label htmlFor="remember" className="text-[#C7C7CC]">
-                      자동 로그인
+                      {messages.auth.login.modal.rememberMe}
                     </label>
                   </div>
                   <div className="ml-auto">
@@ -367,7 +384,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                         onClick={() => setMode('forgot')} 
                         className="text-[#cba967] hover:underline text-sm"
                       >
-                        비밀번호 찾기
+                        {messages.auth.login.modal.forgotLink}
                       </button>
                     )}
                   </div>
@@ -389,7 +406,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                   </div>
                   <div className="ml-3 text-sm">
                     <label htmlFor="terms" className="text-[#C7C7CC]">
-                      브릿지메이커스의 <Link href={`/${locale}/terms-of-service`} className="text-[#cba967] hover:underline" target="_blank" rel="noopener noreferrer">서비스 이용약관</Link>과 <Link href={`/${locale}/privacy-policy`} className="text-[#cba967] hover:underline" target="_blank" rel="noopener noreferrer">개인정보 처리방침</Link>에 동의합니다 <span className="text-[#cba967]">*</span>
+                      {messages.auth.login.register.termsLabel}
                     </label>
                     {formErrors.terms && <p className="mt-1 text-red-500 text-xs">{formErrors.terms}</p>}
                   </div>
@@ -408,12 +425,12 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    처리 중...
+                    {messages.auth.login.authenticating}
                   </span>
                 ) : (
-                  mode === 'login' ? '로그인' : 
-                  mode === 'register' ? '회원가입' : 
-                  '비밀번호 재설정 이메일 보내기'
+                  mode === 'login' ? messages.auth.login.modal.submitButton : 
+                  mode === 'register' ? messages.auth.login.register.submitButton : 
+                  messages.auth.login.forgot.submitButton
                 )}
               </button>
             </form>
@@ -427,7 +444,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                   </div>
                   <div className="relative flex justify-center">
                     <span className="px-2 bg-[#050a16] text-[#C7C7CC] text-sm">
-                      또는
+                      {messages.auth.login.modal.or}
                     </span>
                   </div>
                 </div>
@@ -446,7 +463,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                       </svg>
-                      <span>구글 계정으로 로그인</span>
+                      <span>{messages.auth.login.googleLogin}</span>
                     </button>
                     
                     {/* 소셜 로그인 - 애플 */}
@@ -458,7 +475,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z" />
                       </svg>
-                      <span>애플 계정으로 로그인</span>
+                      <span>{messages.auth.login.appleLogin}</span>
                     </button>
                   </div>
                 )}
@@ -466,11 +483,11 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                 <div className="text-center mt-6">
                   {mode === 'login' ? (
                     <p className="text-[#C7C7CC] text-sm">
-                      계정이 없으신가요? <button onClick={() => setMode('register')} className="text-[#cba967] hover:underline">회원가입</button>
+                      {messages.auth.login.modal.noAccount} <button onClick={() => setMode('register')} className="text-[#cba967] hover:underline">{messages.auth.login.modal.registerLink}</button>
                     </p>
                   ) : (
                     <p className="text-[#C7C7CC] text-sm">
-                      이미 계정이 있으신가요? <button onClick={() => setMode('login')} className="text-[#cba967] hover:underline">로그인</button>
+                      {messages.auth.login.modal.alreadyAccount} <button onClick={() => setMode('login')} className="text-[#cba967] hover:underline">{messages.auth.login.modal.loginLink}</button>
                     </p>
                   )}
                 </div>
@@ -484,7 +501,7 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
                   onClick={() => setMode('login')}
                   className="text-[#cba967] hover:underline"
                 >
-                  로그인으로 돌아가기
+                  {messages.auth.login.forgot.loginLink}
                 </button>
               </div>
             )}
@@ -495,15 +512,13 @@ const AuthLoginModal = ({ isOpen, onClose, locale, initialMode = 'login' }: Logi
       {/* OTP 인증 모달 */}
       <OtpVerificationModal
         isOpen={showVerificationModal}
-        onClose={() => {
-          setShowVerificationModal(false);
-          onClose();
-        }}
-        email={verificationEmail}
+        onClose={() => setShowVerificationModal(false)}
         onSuccess={() => {
           setShowVerificationModal(false);
           onClose();
         }}
+        email={verificationEmail}
+        locale={locale}
       />
     </>
   );

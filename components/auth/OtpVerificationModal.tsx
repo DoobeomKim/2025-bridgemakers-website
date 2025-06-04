@@ -3,15 +3,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useMessages } from '@/hooks/useMessages';
 
 interface OtpVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   email: string;
-  onSuccess: () => void;
+  locale: string;
+  onSuccess?: () => void;
 }
 
-const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerificationModalProps) => {
+const OtpVerificationModal = ({ isOpen, onClose, email, locale, onSuccess }: OtpVerificationModalProps) => {
+  const messages = useMessages();
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +25,46 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
   
   const { verifySignupOtp, resendSignupOtp } = useAuth();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // messages가 로드되지 않았을 때의 대체 텍스트
+  const defaultMessages = {
+    ko: {
+      title: '이메일 인증',
+      successTitle: '인증 완료',
+      description: '다음 이메일로 6자리 인증 코드를 보내드렸습니다:',
+      instruction: '코드를 입력하여 회원가입을 완료해주세요.',
+      verifyButton: '인증하기',
+      verifying: '인증 중...',
+      resendButton: '새 코드 받기',
+      resendButtonTimer: '재전송 가능 ({time})',
+      resending: '재전송 중...',
+      invalidCode: '6자리 코드를 모두 입력해주세요.',
+      success: {
+        title: '인증 완료! 🎉',
+        description: '회원가입이 성공적으로 완료되었습니다.\n잠시 후 자동으로 이동됩니다.'
+      }
+    },
+    en: {
+      title: 'Email Verification',
+      successTitle: 'Verification Complete',
+      description: 'We\'ve sent a 6-digit verification code to:',
+      instruction: 'Enter the code to complete your registration.',
+      verifyButton: 'Verify',
+      verifying: 'Verifying...',
+      resendButton: 'Get New Code',
+      resendButtonTimer: 'Resend available in ({time})',
+      resending: 'Resending...',
+      invalidCode: 'Please enter the 6-digit code.',
+      success: {
+        title: 'Verification Complete! 🎉',
+        description: 'Your registration has been successfully completed.\nYou will be redirected shortly.'
+      }
+    }
+  };
+
+  // 현재 locale에 맞는 기본 메시지 선택
+  const currentDefaultMessages = defaultMessages[locale as keyof typeof defaultMessages] || defaultMessages.en;
 
   // 3분 타이머
   useEffect(() => {
@@ -69,18 +112,21 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
     // 숫자만 허용
     if (!/^\d*$/.test(value)) return;
 
-    const newOtpCode = [...otpCode];
-    newOtpCode[index] = value;
-    setOtpCode(newOtpCode);
+    setOtpCode(prev => {
+      const newOtpCode = [...prev];
+      newOtpCode[index] = value;
+      
+      // 6자리 모두 입력되면 자동 검증
+      if (newOtpCode.every(digit => digit !== '')) {
+        handleVerifyOtp(newOtpCode.join(''));
+      }
+      
+      return newOtpCode;
+    });
 
     // 자동으로 다음 필드로 이동
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
-    }
-
-    // 6자리 모두 입력되면 자동 검증
-    if (newOtpCode.every(digit => digit !== '')) {
-      handleVerifyOtp(newOtpCode.join(''));
     }
   };
 
@@ -96,7 +142,7 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
     const codeToVerify = code || otpCode.join('');
     
     if (codeToVerify.length !== 6) {
-      setError('6자리 코드를 모두 입력해주세요.');
+      setError(messages?.auth?.verification?.error?.invalidCode || currentDefaultMessages.invalidCode);
       return;
     }
 
@@ -105,30 +151,22 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
 
     try {
       await verifySignupOtp(email, codeToVerify);
-      console.log('✅ OTP 검증 성공 - 회원가입 완료');
-      
-      // 성공 상태 표시
       setIsSuccess(true);
       setIsVerifying(false);
       
-      // 2초 후 onSuccess 콜백 실행
-      setTimeout(() => {
-        onSuccess();
-      }, 2000);
-      
-    } catch (error: any) {
-      console.error('❌ OTP 검증 실패:', error);
-      
-      // 에러 메시지 분류
-      if (error.message?.includes('invalid') || error.message?.includes('expired')) {
-        setError('인증 코드가 올바르지 않거나 만료되었습니다.');
-      } else if (error.message?.includes('too_many_requests')) {
-        setError('너무 많은 시도를 했습니다. 잠시 후 다시 시도해주세요.');
-      } else {
-        setError('인증에 실패했습니다. 다시 시도해주세요.');
+      if (onSuccess) {
+        setTimeout(onSuccess, 2000);
       }
       
-      // OTP 코드 초기화
+    } catch (error: any) {
+      if (error.message?.includes('invalid') || error.message?.includes('expired')) {
+        setError(messages?.auth?.verification?.error?.invalidCode || currentDefaultMessages.invalidCode);
+      } else if (error.message?.includes('too_many_requests')) {
+        setError(messages?.auth?.verification?.error?.tooManyAttempts || 'Too many attempts. Please try again later.');
+      } else {
+        setError(messages?.auth?.verification?.error?.default || 'Verification failed.');
+      }
+      
       setOtpCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
       setIsVerifying(false);
@@ -144,7 +182,6 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
 
     try {
       await resendSignupOtp(email);
-      console.log('✅ OTP 재전송 성공');
       
       // 타이머 재시작
       setTimeLeft(180);
@@ -153,22 +190,58 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
       inputRefs.current[0]?.focus();
       
     } catch (error: any) {
-      console.error('❌ OTP 재전송 실패:', error);
-      setError('코드 재전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setError(messages?.auth?.verification?.error?.resend || '코드 재전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsResending(false);
     }
   };
 
+  // ESC 키 이벤트 핸들러
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 overflow-y-auto">
-      <div className="relative bg-[#050a16] rounded-xl w-full max-w-md mx-4 shadow-xl animate-fadeIn border border-[#1f2937]">
+    <div 
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75 overflow-y-auto"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+        e.stopPropagation();
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+    >
+      <div 
+        ref={modalRef}
+        className="relative bg-[#050a16] rounded-xl w-full max-w-md mx-4 shadow-xl animate-fadeIn border border-[#1f2937]"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* 헤더 */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-[#1f2937]">
           <h2 className="text-xl font-bold text-white">
-            {isSuccess ? '인증 완료' : '이메일 인증'}
+            {isSuccess 
+              ? (messages?.auth?.verification?.successTitle || currentDefaultMessages.successTitle)
+              : (messages?.auth?.verification?.title || currentDefaultMessages.title)
+            }
           </h2>
           <button
             onClick={onClose}
@@ -185,122 +258,82 @@ const OtpVerificationModal = ({ isOpen, onClose, email, onSuccess }: OtpVerifica
             // 성공 상태 UI
             <div className="text-center">
               <div className="mb-6">
-                {/* 성공 아이콘 */}
                 <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                   <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
                 
-                <h3 className="text-xl font-bold text-white mb-2">인증 완료! 🎉</h3>
-                <p className="text-[#C7C7CC]">
-                  회원가입이 성공적으로 완료되었습니다.<br />
-                  잠시 후 자동으로 이동됩니다.
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {messages?.auth?.verification?.success?.title || currentDefaultMessages.success.title}
+                </h3>
+                <p className="text-[#C7C7CC] whitespace-pre-line">
+                  {messages?.auth?.verification?.success?.description || currentDefaultMessages.success.description}
                 </p>
-              </div>
-              
-              {/* 로딩 표시 */}
-              <div className="flex justify-center">
-                <div className="animate-spin w-5 h-5 border-2 border-[#cba967] border-t-transparent rounded-full"></div>
               </div>
             </div>
           ) : (
-            // 기존 OTP 입력 UI
+            // 입력 상태 UI
             <>
               <div className="text-center mb-6">
-                <p className="text-[#C7C7CC] mb-2">
-                  다음 이메일로 6자리 인증 코드를 보내드렸습니다:
+                <p className="text-[#C7C7CC] mb-1">
+                  {messages?.auth?.verification?.description || currentDefaultMessages.description}
                 </p>
-                <p className="text-[#cba967] font-medium">{email}</p>
-                <p className="text-sm text-[#C7C7CC] mt-2">
-                  코드를 입력하여 회원가입을 완료해주세요.
+                <p className="text-white font-semibold mb-4">{email}</p>
+                <p className="text-[#C7C7CC]">
+                  {messages?.auth?.verification?.instruction || currentDefaultMessages.instruction}
                 </p>
               </div>
 
               {/* OTP 입력 필드 */}
-              <div className="flex justify-center space-x-3 mb-6">
+              <div className="flex justify-center gap-2 mb-6">
                 {otpCode.map((digit, index) => (
                   <input
                     key={index}
-                    ref={(el) => { inputRefs.current[index] = el; }}
+                    ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el }}
                     type="text"
                     maxLength={1}
                     value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    className="w-12 h-12 text-center text-xl font-bold bg-[#131f36] border border-[rgba(255,255,255,0.1)] rounded-lg text-white focus:ring-[#cba967] focus:border-[#cba967] transition"
-                    disabled={isVerifying}
+                    onChange={e => handleOtpChange(index, e.target.value)}
+                    onKeyDown={e => handleKeyDown(index, e)}
+                    className="w-12 h-12 text-center text-white bg-[#1f2937] rounded-lg border border-[#374151] focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    disabled={isVerifying || isSuccess}
                   />
                 ))}
               </div>
 
               {/* 에러 메시지 */}
               {error && (
-                <div className="mb-4 p-3 bg-red-900/30 border border-red-700 text-red-200 rounded-lg text-sm text-center">
+                <div className="text-red-500 text-sm text-center mb-4">
                   {error}
                 </div>
               )}
 
-              {/* 타이머 */}
-              <div className="text-center mb-6">
-                {timeLeft > 0 ? (
-                  <p className="text-sm text-[#C7C7CC]">
-                    코드 유효시간: <span className="text-[#cba967] font-medium">{formatTime(timeLeft)}</span>
-                  </p>
-                ) : (
-                  <p className="text-sm text-red-400">
-                    코드가 만료되었습니다. 새 코드를 요청해주세요.
-                  </p>
-                )}
-              </div>
-
-              {/* 액션 버튼들 */}
-              <div className="space-y-3">
-                {/* 검증 버튼 (수동) */}
+              {/* 하단 버튼 */}
+              <div className="flex flex-col items-center gap-4">
                 <button
                   onClick={() => handleVerifyOtp()}
-                  disabled={isVerifying || otpCode.some(digit => digit === '')}
-                  className="w-full py-3 px-4 bg-[#cba967] hover:bg-[#b99856] text-black font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={otpCode.join('').length !== 6 || isVerifying || isSuccess}
+                  className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
                 >
-                  {isVerifying ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      인증 중...
-                    </span>
-                  ) : (
-                    '인증하기'
-                  )}
+                  {isVerifying 
+                    ? (messages?.auth?.verification?.verifying || currentDefaultMessages.verifying)
+                    : (messages?.auth?.verification?.verifyButton || currentDefaultMessages.verifyButton)
+                  }
                 </button>
 
-                {/* 재전송 버튼 */}
                 <button
                   onClick={handleResendOtp}
-                  disabled={!canResend || isResending}
-                  className="w-full py-3 px-4 border border-[rgba(255,255,255,0.1)] text-[#C7C7CC] rounded-lg hover:bg-[#131f36] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!canResend || isResending || isSuccess}
+                  className="text-[#C7C7CC] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isResending ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      재전송 중...
-                    </span>
-                  ) : (
-                    canResend ? '새 코드 받기' : `재전송 가능 (${formatTime(timeLeft)})`
-                  )}
+                  {isResending 
+                    ? (messages?.auth?.verification?.resending || currentDefaultMessages.resending)
+                    : canResend
+                      ? (messages?.auth?.verification?.resendButton || currentDefaultMessages.resendButton)
+                      : (messages?.auth?.verification?.resendButtonTimer || currentDefaultMessages.resendButtonTimer).replace('{time}', formatTime(timeLeft))
+                  }
                 </button>
-              </div>
-
-              {/* 도움말 */}
-              <div className="mt-6 text-center">
-                <p className="text-xs text-[#C7C7CC]">
-                  코드가 도착하지 않나요?<br />
-                  스팸함을 확인하거나 몇 분 후 다시 시도해보세요.
-                </p>
               </div>
             </>
           )}

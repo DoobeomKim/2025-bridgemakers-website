@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { X, Upload, Calendar, Check, MessageCircle } from 'lucide-react';
+import { useMessages } from '@/hooks/useMessages';
 
 interface ContactUsModalProps {
   isOpen: boolean;
@@ -54,6 +55,7 @@ const initialFormData: FormData = {
 };
 
 export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps) {
+  const messages = useMessages();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,28 +105,28 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
     const newErrors: FormErrors = {};
 
     // 필수 필드 검증
-    if (!formData.inquiryType) newErrors.inquiryType = '문의 유형을 선택해주세요.';
-    if (!formData.clientType) newErrors.clientType = '본인 유형을 선택해주세요.';
+    if (!formData.inquiryType) newErrors.inquiryType = messages?.contact?.modal?.validation?.inquiryTypeRequired || '문의 유형을 선택해주세요.';
+    if (!formData.clientType) newErrors.clientType = messages?.contact?.modal?.validation?.clientTypeRequired || '본인 유형을 선택해주세요.';
     if (!formData.name || formData.name.length < 2 || formData.name.length > 20) {
-      newErrors.name = '이름은 2-20자 사이로 입력해주세요.';
+      newErrors.name = messages?.contact?.modal?.validation?.nameLength || '이름은 2-20자 사이로 입력해주세요.';
     }
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = '올바른 이메일 형식을 입력해주세요.';
+      newErrors.email = messages?.contact?.modal?.validation?.emailValid || '올바른 이메일 형식을 입력해주세요.';
     }
     if (!formData.phone || !/^\d{10,15}$/.test(formData.phone.replace(/-/g, ''))) {
-      newErrors.phone = '올바른 연락처를 입력해주세요. (10-15자리 숫자)';
+      newErrors.phone = messages?.contact?.modal?.validation?.phoneValid || '올바른 연락처를 입력해주세요. (10-15자리 숫자)';
     }
     if (formData.clientType === 'company' && (!formData.companyName || formData.companyName.length < 2)) {
-      newErrors.companyName = '회사명을 2자 이상 입력해주세요.';
+      newErrors.companyName = messages?.contact?.modal?.validation?.companyNameLength || '회사명을 2자 이상 입력해주세요.';
     }
     if (formData.inquiryType === 'quote' && formData.fields.length === 0) {
-      newErrors.fields = '분야를 최소 1개 선택해주세요.';
+      newErrors.fields = messages?.contact?.modal?.validation?.fieldsRequired || '분야를 최소 1개 선택해주세요.';
     }
     if (!formData.content || formData.content.length < 2 || formData.content.length > 500) {
-      newErrors.content = '문의내용은 2-500자 사이로 입력해주세요.';
+      newErrors.content = messages?.contact?.modal?.validation?.contentLength || '문의내용은 2-500자 사이로 입력해주세요.';
     }
     if (!formData.privacyConsent) {
-      newErrors.privacyConsent = '개인정보 처리방침에 동의해주세요.';
+      newErrors.privacyConsent = messages?.contact?.modal?.validation?.privacyRequired || '개인정보 처리방침에 동의해주세요.';
     }
 
     setErrors(newErrors);
@@ -308,8 +310,8 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
 
       // 4️⃣ 성공 처리
       const successMessage = emailSentSuccessfully 
-        ? '문의가 성공적으로 접수되었습니다. 확인 이메일을 발송했으며, 빠른 시일 내에 연락드리겠습니다.'
-        : '문의가 성공적으로 접수되었습니다. 빠른 시일 내에 연락드리겠습니다. (이메일 발송은 실패했지만 문의는 정상 접수되었습니다.)';
+        ? (messages?.contact?.modal?.messages?.success || '문의가 성공적으로 접수되었습니다. 확인 이메일을 발송했으며, 빠른 시일 내에 연락드리겠습니다.')
+        : (messages?.contact?.modal?.messages?.successWithoutEmail || '문의가 성공적으로 접수되었습니다. 빠른 시일 내에 연락드리겠습니다. (이메일 발송은 실패했지만 문의는 정상 접수되었습니다.)');
       
       alert(successMessage);
       setFormData(initialFormData);
@@ -319,7 +321,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
       console.error('❌ 문의 접수 실패:', error);
       
       // 에러 타입에 따른 메시지 구성
-      let errorMessage = '문의 접수 중 오류가 발생했습니다.';
+      let errorMessage = messages?.contact?.modal?.messages?.error || '문의 접수 중 오류가 발생했습니다.';
       
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -333,7 +335,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
         }
       }
       
-      alert(errorMessage + '\n\n다시 시도해주세요.');
+      alert(errorMessage + '\n\n' + (messages?.contact?.modal?.messages?.error?.split('\n\n')[1] || '다시 시도해주세요.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -352,7 +354,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 md:p-4 border-b border-[#1a2332] flex-shrink-0">
-          <h2 className="text-lg md:text-lg font-semibold text-white">서비스 문의</h2>
+          <h2 className="text-lg md:text-lg font-semibold text-white">{messages?.contact?.modal?.title || '서비스 문의'}</h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-white hover:bg-[#1a2332] rounded-lg transition-colors"
@@ -372,7 +374,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
         {/* 안내 텍스트 */}
         <div className="text-center px-4 md:px-4 pb-2 md:pb-3 flex-shrink-0">
           <p className="text-gray-300 text-xs md:text-sm">
-            프로젝트 문의를 상세히 작성해주세요
+            {messages?.contact?.modal?.subtitle || '프로젝트 문의를 상세히 작성해주세요'}
           </p>
         </div>
 
@@ -382,12 +384,12 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             {/* 문의 유형 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-3">
-                문의 유형 <span className="text-red-400">*</span>
+                {messages?.contact?.modal?.inquiryType?.label || '문의 유형'} <span className="text-red-400">{messages?.contact?.modal?.inquiryType?.required || '*'}</span>
               </label>
               <div className="flex gap-3">
                 {[
-                  { value: 'quote', label: '견적문의' },
-                  { value: 'general', label: '기타문의' }
+                  { value: 'quote', label: messages?.contact?.modal?.inquiryType?.quote || '견적문의' },
+                  { value: 'general', label: messages?.contact?.modal?.inquiryType?.general || '기타문의' }
                 ].map(option => (
                   <button
                     key={option.value}
@@ -409,12 +411,12 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             {/* 본인 유형 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-3">
-                본인 유형 <span className="text-red-400">*</span>
+                {messages?.contact?.modal?.clientType?.label || '본인 유형'} <span className="text-red-400">{messages?.contact?.modal?.clientType?.required || '*'}</span>
               </label>
               <div className="flex gap-3">
                 {[
-                  { value: 'individual', label: '개인' },
-                  { value: 'company', label: '법인' }
+                  { value: 'individual', label: messages?.contact?.modal?.clientType?.individual || '개인' },
+                  { value: 'company', label: messages?.contact?.modal?.clientType?.company || '법인' }
                 ].map(option => (
                   <button
                     key={option.value}
@@ -437,42 +439,42 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  이름/담당자명 <span className="text-red-400">*</span>
+                  {messages?.contact?.modal?.fields?.name?.label || '이름/담당자명'} <span className="text-red-400">{messages?.contact?.modal?.fields?.name?.required || '*'}</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => updateFormData('name', e.target.value)}
                   className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
-                  placeholder="이름을 입력해주세요"
+                  placeholder={messages?.contact?.modal?.fields?.name?.placeholder || '이름을 입력해주세요'}
                 />
                 {errors.name && <p className="mt-1 text-sm text-red-400">{errors.name}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  이메일 <span className="text-red-400">*</span>
+                  {messages?.contact?.modal?.fields?.email?.label || '이메일'} <span className="text-red-400">{messages?.contact?.modal?.fields?.email?.required || '*'}</span>
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateFormData('email', e.target.value)}
                   className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
-                  placeholder="example@email.com"
+                  placeholder={messages?.contact?.modal?.fields?.email?.placeholder || 'example@email.com'}
                 />
                 {errors.email && <p className="mt-1 text-sm text-red-400">{errors.email}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  연락처 <span className="text-red-400">*</span>
+                  {messages?.contact?.modal?.fields?.phone?.label || '연락처'} <span className="text-red-400">{messages?.contact?.modal?.fields?.phone?.required || '*'}</span>
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => updateFormData('phone', e.target.value)}
                   className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
-                  placeholder="010-1234-5678"
+                  placeholder={messages?.contact?.modal?.fields?.phone?.placeholder || '010-1234-5678'}
                 />
                 {errors.phone && <p className="mt-1 text-sm text-red-400">{errors.phone}</p>}
               </div>
@@ -480,14 +482,14 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
               {formData.clientType === 'company' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    회사명 <span className="text-red-400">*</span>
+                    {messages?.contact?.modal?.fields?.companyName?.label || '회사명'} <span className="text-red-400">{messages?.contact?.modal?.fields?.companyName?.required || '*'}</span>
                   </label>
                   <input
                     type="text"
                     value={formData.companyName}
                     onChange={(e) => updateFormData('companyName', e.target.value)}
                     className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
-                    placeholder="회사명을 입력해주세요"
+                    placeholder={messages?.contact?.modal?.fields?.companyName?.placeholder || '회사명을 입력해주세요'}
                   />
                   {errors.companyName && <p className="mt-1 text-sm text-red-400">{errors.companyName}</p>}
                 </div>
@@ -498,26 +500,30 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             {formData.inquiryType === 'quote' && (
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-3">
-                  분야 선택 (복수 선택 가능) <span className="text-red-400">*</span>
+                  {messages?.contact?.modal?.serviceFields?.label || '분야 선택 (복수 선택 가능)'} <span className="text-red-400">{messages?.contact?.modal?.serviceFields?.required || '*'}</span>
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {['영상제작', '웹앱제작', 'SNS컨텐츠'].map(field => (
+                  {[
+                    { key: 'video', label: messages?.contact?.modal?.serviceFields?.video || '영상제작' },
+                    { key: 'webapp', label: messages?.contact?.modal?.serviceFields?.webapp || '웹앱제작' },
+                    { key: 'sns', label: messages?.contact?.modal?.serviceFields?.sns || 'SNS컨텐츠' }
+                  ].map(field => (
                     <button
-                      key={field}
+                      key={field.key}
                       type="button"
                       onClick={() => {
-                        const newFields = formData.fields.includes(field)
-                          ? formData.fields.filter(f => f !== field)
-                          : [...formData.fields, field];
+                        const newFields = formData.fields.includes(field.label)
+                          ? formData.fields.filter(f => f !== field.label)
+                          : [...formData.fields, field.label];
                         updateFormData('fields', newFields);
                       }}
                       className={`py-3 px-4 rounded-xl border transition-all font-medium text-sm ${
-                        formData.fields.includes(field)
+                        formData.fields.includes(field.label)
                           ? 'border-[#cba967] bg-[#cba967] text-white shadow-lg'
                           : 'border-[#243142] bg-[#152030] text-gray-300 hover:border-[#cba967] hover:bg-[#1f2937]'
                       }`}
                     >
-                      {field}
+                      {field.label}
                     </button>
                   ))}
                 </div>
@@ -529,14 +535,14 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             {formData.inquiryType === 'quote' && (
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-3">
-                  예산 범위
+                  {messages?.contact?.modal?.budget?.label || '예산 범위'}
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
-                    { value: 'under-1000', label: '1000만원 미만' },
-                    { value: '1000-5000', label: '1000-5000만원' },
-                    { value: 'over-5000', label: '5000만원 이상' },
-                    { value: 'negotiable', label: '협의' }
+                    { value: 'under-1000', label: messages?.contact?.modal?.budget?.under1000 || '1000만원 미만' },
+                    { value: '1000-5000', label: messages?.contact?.modal?.budget?.range1000 || '1000-5000만원' },
+                    { value: 'over-5000', label: messages?.contact?.modal?.budget?.over5000 || '5000만원 이상' },
+                    { value: 'negotiable', label: messages?.contact?.modal?.budget?.negotiable || '협의' }
                   ].map(option => (
                     <button
                       key={option.value}
@@ -557,34 +563,38 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
 
             {/* 프로젝트 일정 (견적문의시만) */}
             {formData.inquiryType === 'quote' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  프로젝트 일정
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={formData.projectDate}
-                    onChange={(e) => updateFormData('projectDate', e.target.value)}
-                    className="w-full p-3 pr-12 bg-[#152030] border border-[#243142] rounded-xl text-white focus:border-[#cba967] focus:outline-none transition-colors [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#cba967] pointer-events-none" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {messages?.contact?.modal?.projectDate?.label || '프로젝트 일정'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={formData.projectDate}
+                      onChange={(e) => updateFormData('projectDate', e.target.value)}
+                      className="w-full p-3 pr-12 bg-[#152030] border border-[#243142] rounded-xl text-white focus:border-[#cba967] focus:outline-none transition-colors [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      min={new Date().toISOString().split('T')[0]}
+                      lang="en-US"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#cba967] pointer-events-none" />
+                  </div>
                 </div>
+                <div></div> {/* 빈 공간으로 그리드 균형 맞추기 */}
               </div>
             )}
 
             {/* 문의 내용 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                상세 문의사항 <span className="text-red-400">*</span>
+                {messages?.contact?.modal?.content?.label || '상세 문의사항'} <span className="text-red-400">{messages?.contact?.modal?.content?.required || '*'}</span>
               </label>
               <textarea
                 value={formData.content}
                 onChange={(e) => updateFormData('content', e.target.value)}
                 rows={5}
                 className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors resize-none"
-                placeholder="문의사항을 상세히 작성해주세요 (2-500자)"
+                placeholder={messages?.contact?.modal?.content?.placeholder || '문의사항을 상세히 작성해주세요 (2-500자)'}
               />
               <div className="mt-1 flex justify-between text-xs">
                 <span>{errors.content && <span className="text-red-400">{errors.content}</span>}</span>
@@ -595,7 +605,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             {/* 첨부파일 */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                첨부파일 (최대 5개, 각 10MB 이하)
+                {messages?.contact?.modal?.files?.label || '첨부파일 (최대 5개, 각 10MB 이하)'}
               </label>
               <div
                 className={`border-2 border-dashed rounded-xl p-6 text-center transition ${
@@ -607,16 +617,16 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                 onDrop={handleDrop}
               >
                 <Upload className="mx-auto h-8 w-8 text-gray-400 mb-3" />
-                <p className="text-gray-400 mb-2 text-sm">파일을 여기로 드래그하거나</p>
+                <p className="text-gray-400 mb-2 text-sm">{messages?.contact?.modal?.files?.dragText || '파일을 여기로 드래그하거나'}</p>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="text-[#cba967] hover:text-[#b99a58] font-medium text-sm"
                 >
-                  파일 선택하기
+                  {messages?.contact?.modal?.files?.selectButton || '파일 선택하기'}
                 </button>
                 <p className="text-xs text-gray-500 mt-2">
-                  PDF, DOC, DOCX, JPG, JPEG, PNG 파일만 업로드 가능
+                  {messages?.contact?.modal?.files?.allowedTypes || 'PDF, DOC, DOCX, JPG, JPEG, PNG 파일만 업로드 가능'}
                 </p>
               </div>
               <input
@@ -658,10 +668,10 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                 />
                 <div className="text-sm">
                   <span className="text-gray-300">
-                    개인정보 수집 및 이용에 동의합니다. <span className="text-red-400">*</span>
+                    {messages?.contact?.modal?.privacy?.consent || '개인정보 수집 및 이용에 동의합니다.'} <span className="text-red-400">{messages?.contact?.modal?.privacy?.required || '*'}</span>
                   </span>
                   <p className="text-xs text-gray-500 mt-1">
-                    수집된 개인정보는 문의 처리 및 서비스 안내 목적으로만 사용됩니다.
+                    {messages?.contact?.modal?.privacy?.description || '수집된 개인정보는 문의 처리 및 서비스 안내 목적으로만 사용됩니다.'}
                   </p>
                 </div>
               </label>
@@ -680,12 +690,12 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                문의 접수 중...
+                {messages?.contact?.modal?.submit?.submitting || '문의 접수 중...'}
               </>
             ) : (
               <>
                 <Check className="w-4 h-4 mr-2" />
-                문의하기
+                {messages?.contact?.modal?.submit?.button || '문의하기'}
               </>
             )}
           </button>

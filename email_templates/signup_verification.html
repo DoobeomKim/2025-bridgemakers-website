@@ -1,0 +1,76 @@
+<head>
+    <meta charset="utf-8">
+    <title>브릿지메이커스 회원가입 인증 | BRIDGEMAKERS Email Verification</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #050a16 0%, #1a1f3a 100%); color: white; padding: 30px; text-align: center; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .logo .accent { color: #cba967; }
+        .content { padding: 40px 30px; }
+        .otp-code { font-size: 32px; font-weight: bold; color: #cba967; text-align: center; background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0; letter-spacing: 4px; border: 2px dashed #cba967; }
+        .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+        .btn { display: inline-block; background-color: #cba967; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
+        .expire-time { color: #dc3545; font-weight: bold; }
+        .divider { border-top: 1px solid #eee; margin: 20px 0; }
+        .en { color: #666; } /* 영문 텍스트 스타일 */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">BRIDGE<span class="accent">M</span>AKERS</div>
+            <p>회원가입 이메일 인증<br><span class="en">Email Verification</span></p>
+        </div>
+        
+        <div class="content">
+            <h2>안녕하세요! 👋<br><span class="en">Hello!</span></h2>
+            <p>브릿지메이커스 회원가입을 위한 인증 코드를 보내드립니다.<br>
+            <span class="en">Here is your verification code for BRIDGEMAKERS registration.</span></p>
+            
+            <p><strong>다음 6자리 코드를 입력해주세요:<br>
+            <span class="en">Please enter the following 6-digit code:</span></strong></p>
+            
+            <div class="otp-code">{{ .Token }}</div>
+            
+            <div class="warning">
+                <strong>⚠️ 중요 안내 | Important Notice:</strong>
+                <ul>
+                    <li>이 코드는 <span class="expire-time">3분간만 유효</span>합니다<br>
+                    <span class="en">This code is valid for <span class="expire-time">3 minutes</span> only</span></li>
+                    <li>코드는 숫자 6자리입니다<br>
+                    <span class="en">The code consists of 6 digits</span></li>
+                    <li>보안을 위해 다른 사람과 공유하지 마세요<br>
+                    <span class="en">For security reasons, please do not share this code with others</span></li>
+                </ul>
+            </div>
+            
+            <p><strong>입력 방법 | How to Enter:</strong></p>
+            <ol>
+                <li>회원가입 창에서 인증 코드 입력 화면으로 이동<br>
+                <span class="en">Go to the verification code screen in the registration window</span></li>
+                <li>위의 6자리 코드를 입력<br>
+                <span class="en">Enter the 6-digit code shown above</span></li>
+                <li>인증 완료!<br>
+                <span class="en">Complete verification!</span></li>
+            </ol>
+            
+            <p>코드가 만료되었거나 받지 못하셨나요? 회원가입 창에서 "새 코드 받기" 버튼을 클릭해주세요.<br>
+            <span class="en">Code expired or not received? Click the "Get New Code" button in the registration window.</span></p>
+        </div>
+        
+        <div class="footer">
+            <p>이 이메일을 요청하지 않으셨다면 무시해주세요.<br>
+            <span class="en">If you didn't request this email, please ignore it.</span></p>
+            
+            <div class="divider"></div>
+            
+            <p>© 2025 브릿지메이커스. 모든 권리 보유.<br>
+            <span class="en">© 2025 BRIDGEMAKERS. All rights reserved.</span></p>
+            
+            <p>궁금한 점이 있으시면 고객지원팀에 문의해주세요.<br>
+            <span class="en">If you have any questions, please contact our customer support team.</span></p>
+        </div>
+    </div>
+</body> 

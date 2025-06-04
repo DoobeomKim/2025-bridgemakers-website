@@ -8,6 +8,7 @@ import AuthLoginModal from './AuthLoginModal';
 import ProfileDropdownMenu from './ProfileDropdownMenu';
 import ProfileModal from './ProfileModal';
 import { UserRole } from '@/types/supabase';
+import { useMessages } from '@/hooks/useMessages';
 
 interface AuthButtonsProps {
   locale: string;
@@ -16,6 +17,7 @@ interface AuthButtonsProps {
 
 const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
   const { user, userProfile, signOut, isLoading } = useAuth();
+  const messages = useMessages();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -131,7 +133,7 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
       }, 100);
     } catch (error) {
       console.error('❌ 로그아웃 오류:', error);
-      alert('로그아웃 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+      alert(messages.navigation.logoutError);
     }
   };
 
@@ -166,7 +168,7 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
               onClick={handleLoginClick}
               className="block w-full py-3 px-3 text-base font-medium text-white hover:text-[#cba967] hover:bg-[rgba(203,169,103,0.1)] rounded-md transition-colors text-left"
             >
-              로그인
+              {messages.navigation.login}
             </button>
           </div>
           <AuthLoginModal
@@ -186,7 +188,7 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
             onClick={handleLoginClick}
             className="text-sm text-white hover:text-[#cba967] transition-colors"
           >
-            로그인
+            {messages.navigation.login}
           </button>
         </div>
         <AuthLoginModal
@@ -248,6 +250,7 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
           user={compatibleUserProfile as UserProfile}
+          locale={locale}
         />
         
         <AuthLoginModal
@@ -308,6 +311,7 @@ const NewAuthButtons = ({ locale, isMobile = false }: AuthButtonsProps) => {
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
           user={compatibleUserProfile as UserProfile}
+          locale={locale}
         />
       </div>
       <AuthLoginModal

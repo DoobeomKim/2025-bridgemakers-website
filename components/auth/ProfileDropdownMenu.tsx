@@ -3,6 +3,7 @@
 import { UserProfile } from '@/components/auth/AuthContext';
 import { UserRole } from '@/types/supabase';
 import { HomeIcon, UserIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import { useMessages } from '@/hooks/useMessages';
 
 interface ProfileDropdownMenuProps {
   user: UserProfile;
@@ -21,6 +22,8 @@ const ProfileDropdownMenu = ({
   onProfileClick,
   isDashboard = false
 }: ProfileDropdownMenuProps) => {
+  const messages = useMessages();
+  
   return (
     <div 
       className="w-64 bg-[#0d1526] border border-[rgba(203,169,103,0.3)] shadow-lg rounded-lg overflow-hidden z-50 animate-fadeIn"
@@ -43,11 +46,14 @@ const ProfileDropdownMenu = ({
             <div className="text-white font-medium">{user.first_name || ''} {user.last_name || ''}</div>
             <div className="text-[#C7C7CC] text-xs">{user.email}</div>
             <div className="text-[#cba967] text-xs mt-1 flex items-center">
-              {user.user_level === UserRole.ADMIN ? '관리자' : '기본 회원'}
+              {user.user_level === UserRole.ADMIN 
+                ? (messages?.profile?.role?.admin || '관리자')
+                : (messages?.profile?.role?.member || '기본 회원')
+              }
               {user.email_confirmed_at ? (
-                <span className="ml-2 text-[#4CAF50]">✓ 인증됨</span>
+                <span className="ml-2 text-[#4CAF50]">{messages?.profile?.emailStatus?.verified || '✓ 인증됨'}</span>
               ) : (
-                <span className="ml-2 text-[#ff6b6b]">미인증</span>
+                <span className="ml-2 text-[#ff6b6b]">{messages?.profile?.emailStatus?.unverified || '미인증'}</span>
               )}
             </div>
             {user.company_name && (
@@ -72,7 +78,10 @@ const ProfileDropdownMenu = ({
           className="w-full px-4 py-2 text-left text-white hover:bg-[rgba(203,169,103,0.1)] hover:text-[#cba967] transition-all text-sm flex items-center"
         >
           <HomeIcon className="w-4 h-4 mr-2" />
-          {isDashboard ? '메인페이지로' : '대시보드'}
+          {isDashboard 
+            ? (messages?.profile?.menu?.mainPage || '메인페이지로')
+            : (messages?.profile?.menu?.dashboard || '대시보드')
+          }
         </button>
         <button 
           onClick={() => {
@@ -82,7 +91,7 @@ const ProfileDropdownMenu = ({
           className="w-full px-4 py-2 text-left text-white hover:bg-[rgba(203,169,103,0.1)] hover:text-[#cba967] transition-all text-sm flex items-center"
         >
           <UserIcon className="w-4 h-4 mr-2" />
-          프로필 설정
+          {messages?.profile?.menu?.settings || '프로필 설정'}
         </button>
         <div className="my-1 border-t border-[rgba(255,255,255,0.1)]"></div>
         <button
@@ -93,7 +102,7 @@ const ProfileDropdownMenu = ({
           className="w-full px-4 py-2 text-left text-[#ff6b6b] hover:bg-[rgba(255,107,107,0.1)] transition-all text-sm flex items-center"
         >
           <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
-          로그아웃
+          {messages?.profile?.menu?.logout || '로그아웃'}
         </button>
       </div>
     </div>
