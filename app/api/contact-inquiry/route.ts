@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 연락처 형식 검증 (숫자만, 10-15자리)
-    const phoneRegex = /^\d{10,15}$/;
+    const phoneRegex = /^[+]?\d{10,15}$/;
     if (!phoneRegex.test(body.phone.replace(/-/g, ''))) {
       return NextResponse.json(
         { 

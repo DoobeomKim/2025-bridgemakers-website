@@ -113,7 +113,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = messages?.contact?.modal?.validation?.emailValid || '올바른 이메일 형식을 입력해주세요.';
     }
-    if (!formData.phone || !/^\d{10,15}$/.test(formData.phone.replace(/-/g, ''))) {
+    if (!formData.phone || !/^[+]?\d{10,15}$/.test(formData.phone.replace(/-/g, ''))) {
       newErrors.phone = messages?.contact?.modal?.validation?.phoneValid || '올바른 연락처를 입력해주세요. (10-15자리 숫자)';
     }
     if (formData.clientType === 'company' && (!formData.companyName || formData.companyName.length < 2)) {
@@ -130,6 +130,16 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
     }
 
     setErrors(newErrors);
+
+    // 에러가 있으면 첫 번째 에러 필드로 스크롤
+    if (Object.keys(newErrors).length > 0) {
+      const firstErrorField = Object.keys(newErrors)[0];
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
     return Object.keys(newErrors).length === 0;
   };
 
@@ -394,6 +404,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                   <button
                     key={option.value}
                     type="button"
+                    name="inquiryType"
                     onClick={() => updateFormData('inquiryType', option.value)}
                     className={`flex-1 py-3 px-4 rounded-xl border transition-all font-medium text-sm ${
                       formData.inquiryType === option.value
@@ -421,6 +432,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                   <button
                     key={option.value}
                     type="button"
+                    name="clientType"
                     onClick={() => updateFormData('clientType', option.value)}
                     className={`flex-1 py-3 px-4 rounded-xl border transition-all font-medium text-sm ${
                       formData.clientType === option.value
@@ -444,6 +456,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                 <input
                   type="text"
                   value={formData.name}
+                  name="name"
                   onChange={(e) => updateFormData('name', e.target.value)}
                   className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
                   placeholder={messages?.contact?.modal?.fields?.name?.placeholder || '이름을 입력해주세요'}
@@ -458,6 +471,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                 <input
                   type="email"
                   value={formData.email}
+                  name="email"
                   onChange={(e) => updateFormData('email', e.target.value)}
                   className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
                   placeholder={messages?.contact?.modal?.fields?.email?.placeholder || 'example@email.com'}
@@ -472,6 +486,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                 <input
                   type="tel"
                   value={formData.phone}
+                  name="phone"
                   onChange={(e) => updateFormData('phone', e.target.value)}
                   className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
                   placeholder={messages?.contact?.modal?.fields?.phone?.placeholder || '010-1234-5678'}
@@ -487,6 +502,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
                   <input
                     type="text"
                     value={formData.companyName}
+                    name="companyName"
                     onChange={(e) => updateFormData('companyName', e.target.value)}
                     className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors"
                     placeholder={messages?.contact?.modal?.fields?.companyName?.placeholder || '회사명을 입력해주세요'}
@@ -591,6 +607,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
               </label>
               <textarea
                 value={formData.content}
+                name="content"
                 onChange={(e) => updateFormData('content', e.target.value)}
                 rows={5}
                 className="w-full p-3 bg-[#152030] border border-[#243142] rounded-xl text-white placeholder-gray-500 focus:border-[#cba967] focus:outline-none transition-colors resize-none"
@@ -662,6 +679,7 @@ export default function ContactUsModal({ isOpen, onClose }: ContactUsModalProps)
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
                   type="checkbox"
+                  name="privacyConsent"
                   checked={formData.privacyConsent}
                   onChange={(e) => updateFormData('privacyConsent', e.target.checked)}
                   className="w-4 h-4 text-[#cba967] bg-[#152030] border-[#243142] rounded focus:ring-[#cba967] focus:ring-2 mt-1"
