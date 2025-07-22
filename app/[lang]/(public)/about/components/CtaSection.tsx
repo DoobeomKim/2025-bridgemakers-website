@@ -140,7 +140,7 @@ export default function CtaSection() {
                   icon: '💬',
                   title: '빠른 상담',
                   content: '카카오톡 채널',
-                  link: 'https://open.kakao.com/o/s9qPeqpg',
+                  link: 'http://pf.kakao.com/_EmPWn/friend',
                   description: '실시간 채팅 상담 가능'
                 },
                 {
