@@ -20,11 +20,26 @@ export async function generateMetadata({
   const locale = validateLocale(params.lang);
   const pathname = `/${locale}`;
   
+  // 언어별 메타데이터
+  const metadata = {
+    ko: {
+      title: '브릿지메이커스 - 독일 박람회 영상제작 전문업체 | 20년 경험',
+      description: '20년 이상의 경험을 가진 독일 박람회 영상제작 전문업체. 쾰른메쎄(gamescom, Anuga), 뒤셀도르프메쎄(boot, drupa), 뮌헨메쎄(IAA, BAUMA), 프랑크푸르트메쎄(Ambiente, Automechanika) 등 독일 주요 박람회 영상제작. 기업홍보영상, 전시회영상, 메쎄홍보필름 제작.',
+      keywords: ['독일 박람회 영상제작', '기업홍보영상', '전시회영상', '메쎄홍보필름', 'gamescom', 'Anuga', 'boot', 'drupa', 'IAA', 'BAUMA', 'Ambiente', 'Automechanika', 'Light + Building', 'Rehacare']
+    },
+    en: {
+      title: 'Bridgemakers - German Trade Fair Video Production Specialist | 20+ Years Experience',
+      description: 'Specialized in German trade fair video production with over 20 years of experience. Serving Messe Köln (gamescom, Anuga), Messe Düsseldorf (boot, drupa), Messe München (IAA, BAUMA), Messe Frankfurt (Ambiente, Automechanika). Corporate promotional videos, trade fair films, exhibition videos.',
+      keywords: ['German trade fair video production', 'corporate promotional videos', 'trade fair films', 'exhibition videos', 'gamescom', 'Anuga', 'boot', 'drupa', 'IAA', 'BAUMA', 'Ambiente', 'Automechanika', 'Light + Building', 'Rehacare']
+    }
+  };
+  
+  const currentMeta = metadata[locale as keyof typeof metadata] || metadata.en;
+  
   return {
-    title: locale === 'ko' ? '브릿지메이커스 - 디지털 컨텐츠 제작 전문업체' : 'Bridgemakers - Digital Content Creation Specialist',
-    description: locale === 'ko' 
-      ? '영상 제작, 웹 디자인, 브로셔 디자인 및 온라인 마케팅 서비스를 제공하는 Bridgemakers 공식 웹사이트입니다.'
-      : 'Official website of Bridgemakers, providing video production, web design, brochure design, and online marketing services.',
+    title: currentMeta.title,
+    description: currentMeta.description,
+    keywords: currentMeta.keywords,
     alternates: {
       languages: {
         'ko-KR': `https://ibridgemakers.de/ko`,
