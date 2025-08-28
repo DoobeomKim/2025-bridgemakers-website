@@ -4,6 +4,7 @@ import "./globals.css";
 import { createServerClient } from '@/lib/supabase/server';
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,6 +31,7 @@ export default async function RootLayout({
           {children}
         </AuthProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
