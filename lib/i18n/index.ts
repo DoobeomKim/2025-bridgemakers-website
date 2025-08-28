@@ -1,6 +1,6 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
-export const defaultLocale = 'ko';
+export const defaultLocale = 'en'; // 한국어에서 영어로 변경
 export const locales = ['en', 'ko'] as const;
 export type Locale = (typeof locales)[number];
 
@@ -19,7 +19,8 @@ export function isValidLocale(locale?: string): locale is Locale {
 
 export function validateLocale(locale?: string): Locale {
   if (!isValidLocale(locale)) {
-    notFound();
+    // 지원하지 않는 언어는 기본 언어(영어)로 리디렉션
+    redirect(`/${defaultLocale}`);
   }
   return locale as Locale;
 } 
