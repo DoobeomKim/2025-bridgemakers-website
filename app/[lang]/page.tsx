@@ -1,5 +1,5 @@
 // page.tsx - 서버 컴포넌트
-import { validateLocale } from "@/lib/i18n";
+import { validateLocale, isValidLocale, defaultLocale, Locale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import PublicLayout from "@/components/layouts/public-layout";
 import HomeClient from "./HomeClient";
@@ -17,7 +17,7 @@ export async function generateMetadata({
 }: { 
   params: { lang: string } 
 }): Promise<Metadata> {
-  const locale = validateLocale(params.lang);
+  const locale: Locale = isValidLocale(params.lang) ? params.lang as Locale : defaultLocale;
   const pathname = `/${locale}`;
   
   // 언어별 메타데이터

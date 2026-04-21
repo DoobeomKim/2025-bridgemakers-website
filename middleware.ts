@@ -41,10 +41,19 @@ export async function middleware(req: NextRequest) {
     
     // 미들웨어 클라이언트 생성
     const supabase = createMiddlewareClient<Database>({ req, res })
-    
+
     // 세션 새로고침 (필요한 경우)
-    await supabase.auth.getSession()
-    
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // 대시보드 경로 서버 보호
+    const isDashboardRoute = req.nextUrl.pathname.includes('/dashboard');
+    if (isDashboardRoute && !session) {
+      const lang = req.nextUrl.pathname.split('/')[1] || 'ko';
+      const validLangs = ['ko', 'en', 'de'];
+      const redirectLang = validLangs.includes(lang) ? lang : 'ko';
+      return NextResponse.redirect(new URL(`/${redirectLang}`, req.url));
+    }
+
     return res
   } catch (error) {
     console.error('⚠️ 미들웨어 오류:', error)

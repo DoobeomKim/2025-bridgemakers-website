@@ -32,15 +32,15 @@ export const createServerClient = cache(() => {
           set(name: string, value: string, options: any) {
             try {
               cookieStore.set({ name, value, ...options });
-            } catch (error) {
-              console.warn('⚠️ 쿠키 설정 실패 (Route Handler 외부):', error);
+            } catch {
+              // 서버 컴포넌트에서는 쿠키 쓰기 불가 — 미들웨어가 처리
             }
           },
           remove(name: string, options: any) {
             try {
               cookieStore.set({ name, value: '', ...options });
-            } catch (error) {
-              console.warn('⚠️ 쿠키 삭제 실패 (Route Handler 외부):', error);
+            } catch {
+              // 서버 컴포넌트에서는 쿠키 삭제 불가 — 미들웨어가 처리
             }
           },
         },

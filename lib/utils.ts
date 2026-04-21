@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { slugify } from "transliterate"
+
 import { supabase } from "../lib/supabase"
 
 export function cn(...inputs: ClassValue[]) {
@@ -72,86 +72,28 @@ async function translateToEnglish(text: string): Promise<string> {
   }
 }
 
-// 슬러그 생성 유틸리티 함수 수정
-export async function generateSlug(projectData: ProjectData): Promise<string> {
-  try {
-    const parts: string[] = [];
-    
-    // 1. 연도 추출 (date가 있는 경우)
-    if (projectData.date) {
-      const year = new Date(projectData.date).getFullYear();
-      parts.push(year.toString());
-    } else {
-      parts.push(new Date().getFullYear().toString());
-    }
+// 슬러그 생성 — 동기 방식, 랜덤 suffix로 중복 방지
+export function generateSlug(projectData: ProjectData): string {
+  const year = projectData.date
+    ? new Date(projectData.date).getFullYear()
+    : new Date().getFullYear();
 
-    // 2. 클라이언트명 처리 (번역 후)
-    if (projectData.client) {
-      const translatedClient = await translateToEnglish(projectData.client);
-      const clientSlug = slugify(translatedClient.toLowerCase());
-      if (clientSlug) parts.push(clientSlug);
-    }
+  // latin 문자만 추출 (한글/특수문자 제거)
+  const titlePart = projectData.title
+    ? projectData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 40)
+    : '';
 
-    // 3. 카테고리 처리 (번역 후)
-    if (projectData.category) {
-      const translatedCategory = await translateToEnglish(projectData.category);
-      const categorySlug = slugify(translatedCategory.toLowerCase());
-      if (categorySlug) parts.push(categorySlug);
-    }
+  const suffix = Math.random().toString(36).slice(2, 8); // 6자리 랜덤
 
-    // 4. 제목 처리 (번역 후)
-    if (projectData.title) {
-      const translatedTitle = await translateToEnglish(projectData.title);
-      const titleSlug = slugify(translatedTitle.toLowerCase());
-      if (titleSlug) parts.push(titleSlug);
-    }
-
-    // 기본 슬러그 생성
-    let baseSlug = parts.join('-');
-    
-    // 슬러그가 비어있거나 유효하지 않은 경우 대체 슬러그 생성
-    if (!baseSlug || baseSlug.length < 3) {
-      const timestamp = new Date().getTime();
-      return `project-${timestamp}`;
-    }
-
-    // 연속된 하이픈 제거
-    baseSlug = baseSlug.replace(/-+/g, '-');
-    
-    // 중복 확인 및 처리
-    const { data: existingProject } = await supabase
-      .from('projects')
-      .select('slug')
-      .eq('slug', baseSlug)
-      .single();
-
-    if (!existingProject) {
-      return baseSlug;
-    }
-
-    // 중복이 있는 경우 숫자를 붙여서 유니크한 슬러그 생성
-    let counter = 1;
-    let newSlug = `${baseSlug}-${counter}`;
-
-    while (true) {
-      const { data: duplicateProject } = await supabase
-        .from('projects')
-        .select('slug')
-        .eq('slug', newSlug)
-        .single();
-
-      if (!duplicateProject) {
-        return newSlug;
-      }
-
-      counter++;
-      newSlug = `${baseSlug}-${counter}`;
-    }
-  } catch (error) {
-    console.error('슬러그 생성 중 오류 발생:', error);
-    const timestamp = new Date().getTime();
-    return `project-${timestamp}`;
-  }
+  return titlePart
+    ? `${year}-${titlePart}-${suffix}`
+    : `${year}-project-${suffix}`;
 }
 
 /**

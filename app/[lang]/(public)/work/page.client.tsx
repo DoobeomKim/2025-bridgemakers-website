@@ -17,6 +17,11 @@ interface Project {
   industry: string;
   date: string;
   visibility: string;
+  // 영어 필드들 추가
+  title_en?: string;
+  client_en?: string;
+  category_en?: string;
+  industry_en?: string;
 }
 
 // 이미지 URL 처리 함수
@@ -60,9 +65,17 @@ export default function ClientPage({
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
   const dropdownRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // 카테고리와 산업 목록
-  const categories = ["전체", ...Array.from(new Set(projects.map(p => p.category)))];
-  const industries = ["전체", ...Array.from(new Set(projects.map(p => p.industry).filter(Boolean)))];
+  // 다국어 텍스트 선택 함수
+  const getLocalizedText = (koreanText: string, englishText?: string) => {
+    if (lang === 'en' && englishText && englishText.trim()) {
+      return englishText;
+    }
+    return koreanText;
+  };
+
+  // 카테고리와 산업 목록 (다국어 지원)
+  const categories = ["전체", ...Array.from(new Set(projects.map(p => getLocalizedText(p.category, p.category_en))))];
+  const industries = ["전체", ...Array.from(new Set(projects.map(p => getLocalizedText(p.industry, p.industry_en)).filter(Boolean)))];
 
   // URL에서 project 쿼리 파라미터를 확인
   useEffect(() => {
@@ -93,14 +106,14 @@ export default function ClientPage({
   useEffect(() => {
     let filtered = projects;
     
-    // 카테고리 필터링
+    // 카테고리 필터링 (다국어 지원)
     if (selectedCategory !== "전체") {
-      filtered = filtered.filter(p => p.category === selectedCategory);
+      filtered = filtered.filter(p => getLocalizedText(p.category, p.category_en) === selectedCategory);
     }
     
-    // 산업 필터링
+    // 산업 필터링 (다국어 지원)
     if (selectedIndustry !== "전체") {
-      filtered = filtered.filter(p => p.industry === selectedIndustry);
+      filtered = filtered.filter(p => getLocalizedText(p.industry, p.industry_en) === selectedIndustry);
     }
     
     // 날짜 정렬
@@ -170,7 +183,7 @@ export default function ClientPage({
               onClick={toggleSortOrder}
               className="px-6 py-2 rounded-full text-sm transition bg-[rgba(255,255,255,0.05)] text-[#C7C7CC] hover:bg-[rgba(255,255,255,0.1)]"
             >
-              YEAR {sortOrder === 'desc' ? '↓' : '↑'}
+              {lang === 'en' ? 'YEAR' : '연도'} {sortOrder === 'desc' ? '↓' : '↑'}
             </button>
 
             {/* 카테고리 드롭다운 */}
@@ -186,7 +199,7 @@ export default function ClientPage({
                     : "bg-[rgba(255,255,255,0.05)] text-[#C7C7CC] hover:bg-[rgba(255,255,255,0.1)]"
                 }`}
               >
-                CATEGORY {showCategoryDropdown ? '↑' : '↓'}
+                {lang === 'en' ? 'CATEGORY' : '카테고리'} {showCategoryDropdown ? '↑' : '↓'}
               </button>
               {showCategoryDropdown && (
                 <div className="absolute left-0 top-full mt-2 w-48 py-2 bg-[#1a1a1a] rounded-xl border border-[rgba(255,255,255,0.1)] shadow-lg z-10">
@@ -223,7 +236,7 @@ export default function ClientPage({
                     : "bg-[rgba(255,255,255,0.05)] text-[#C7C7CC] hover:bg-[rgba(255,255,255,0.1)]"
                 }`}
               >
-                INDUSTRY {showIndustryDropdown ? '↑' : '↓'}
+                {lang === 'en' ? 'INDUSTRY' : '산업'} {showIndustryDropdown ? '↑' : '↓'}
               </button>
               {showIndustryDropdown && (
                 <div className="absolute left-0 top-full mt-2 w-48 py-2 bg-[#1a1a1a] rounded-xl border border-[rgba(255,255,255,0.1)] shadow-lg z-10">
@@ -261,7 +274,7 @@ export default function ClientPage({
                   <div className="relative aspect-[16/9] overflow-hidden">
                     <Image 
                       src={failedImages.has(project.id) ? '/images/project-1.jpg' : getImageUrl(project.image_url)}
-                      alt={project.title} 
+                      alt={getLocalizedText(project.title, project.title_en)} 
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       priority={currentPage === 1}
@@ -283,12 +296,12 @@ export default function ClientPage({
                       className="cursor-pointer hover:text-[#cba967] transition-colors"
                       onClick={() => openModal(project.slug)}
                     >
-                      {project.title}
+                      {getLocalizedText(project.title, project.title_en)}
                     </div>
                   </h3>
                   <div className="mt-3 flex justify-between items-center border-t border-[rgba(255,255,255,0.1)] pt-3">
-                    <div className="text-sm text-white">{project.client}</div>
-                    <div className="text-sm text-[#cba967]">{project.category}</div>
+                    <div className="text-sm text-white">{getLocalizedText(project.client, project.client_en)}</div>
+                    <div className="text-sm text-[#cba967]">{getLocalizedText(project.category, project.category_en)}</div>
                   </div>
                 </div>
               </div>
@@ -298,7 +311,10 @@ export default function ClientPage({
           {currentProjects.length === 0 && (
             <div className="col-span-full py-10 text-center">
               <p className="text-[#C7C7CC]">
-                {filteredProjects.length === 0 ? "프로젝트가 없습니다." : "프로젝트를 불러오는 중에 문제가 발생했습니다."}
+                {filteredProjects.length === 0 
+                  ? (lang === 'en' ? "No projects found." : "프로젝트가 없습니다.")
+                  : (lang === 'en' ? "An error occurred while loading projects." : "프로젝트를 불러오는 중에 문제가 발생했습니다.")
+                }
               </p>
             </div>
           )}
@@ -317,7 +333,7 @@ export default function ClientPage({
                     : "text-[#C7C7CC] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)]"
                 }`}
               >
-                이전
+                {lang === 'en' ? 'Previous' : '이전'}
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
@@ -341,7 +357,7 @@ export default function ClientPage({
                     : "text-[#C7C7CC] bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)]"
                 }`}
               >
-                다음
+                {lang === 'en' ? 'Next' : '다음'}
               </button>
             </div>
           </div>

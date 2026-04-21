@@ -48,6 +48,15 @@ export interface Database {
           video_url?: string
           video_thumbnail_url?: string
           visibility: 'public' | 'private'
+          // 영어 필드들 추가
+          title_en?: string
+          description_en?: string
+          content_en?: string
+          category_en?: string
+          client_en?: string
+          country_en?: string
+          industry_en?: string
+          translation_status?: 'pending' | 'translated' | 'reviewed'
           created_at: string
           updated_at: string
         }
@@ -66,6 +75,15 @@ export interface Database {
           video_url?: string
           video_thumbnail_url?: string
           visibility?: 'public' | 'private'
+          // 영어 필드들 추가
+          title_en?: string
+          description_en?: string
+          content_en?: string
+          category_en?: string
+          client_en?: string
+          country_en?: string
+          industry_en?: string
+          translation_status?: 'pending' | 'translated' | 'reviewed'
           created_at?: string
           updated_at?: string
         }
@@ -84,6 +102,15 @@ export interface Database {
           video_url?: string
           video_thumbnail_url?: string
           visibility?: 'public' | 'private'
+          // 영어 필드들 추가
+          title_en?: string
+          description_en?: string
+          content_en?: string
+          category_en?: string
+          client_en?: string
+          country_en?: string
+          industry_en?: string
+          translation_status?: 'pending' | 'translated' | 'reviewed'
           created_at?: string
           updated_at?: string
         }

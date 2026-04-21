@@ -171,7 +171,7 @@ export default function ProjectModal({ isOpen, onClose, projectSlug, lang }: Pro
             </div>
           ) : project ? (
             <div className="mx-auto max-w-6xl">
-              <ProjectDetail project={project} />
+              <ProjectDetail project={project} locale={lang} />
               {relatedProjects && relatedProjects.length > 0 && (
                 <RelatedProjects 
                   projects={relatedProjects} 

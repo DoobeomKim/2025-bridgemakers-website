@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Locale } from "@/lib/i18n";
 import ProjectEditModal from "./ProjectEditModal";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -12,27 +12,17 @@ interface ProjectEditWrapperProps {
 }
 
 export default function ProjectEditWrapper({ locale, projectId }: ProjectEditWrapperProps) {
-  const [isModalOpen, setIsModalOpen] = useState(true);
+  const router = useRouter();
   const { userProfile, isLoading } = useAuth();
 
-  // 모달 닫기 처리 (목록 페이지로 리다이렉트)
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    window.location.href = `/${locale}/dashboard/projects`;
+  const handleBack = () => {
+    router.push(`/${locale}/dashboard/projects`);
   };
 
-  // 저장 성공 처리
-  const handleSuccess = () => {
-    // 성공 시에도 목록 페이지로 이동
-    window.location.href = `/${locale}/dashboard/projects`;
-  };
-
-  // 로딩 상태 처리
   if (isLoading) {
     return <div className="text-white p-8 text-center">권한 확인중...</div>;
   }
 
-  // 권한 체크
   if (!userProfile || userProfile.user_level !== UserRole.ADMIN) {
     return (
       <div className="bg-[#1A2234] rounded-lg p-6 shadow-lg text-center">
@@ -45,11 +35,11 @@ export default function ProjectEditWrapper({ locale, projectId }: ProjectEditWra
 
   return (
     <ProjectEditModal
-      isOpen={isModalOpen}
-      onClose={handleCloseModal}
-      onSuccess={handleSuccess}
+      isOpen={true}
+      onClose={handleBack}
+      onSuccess={handleBack}
       locale={locale}
       projectId={projectId}
     />
   );
-} 
+}

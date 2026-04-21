@@ -2,11 +2,12 @@
 
 import Image from 'next/image';
 import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { ko, enUS } from 'date-fns/locale';
 import { Project, ProjectImage, ProjectTag } from '@/lib/database.types';
 import { ShareIcon } from '@heroicons/react/24/outline';
 import { getYouTubeVideoId } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { Locale } from '@/lib/i18n';
 
 interface ProjectDetailProps {
   project: Project & {
@@ -14,7 +15,16 @@ interface ProjectDetailProps {
     project_tag_relations?: {
       project_tags: ProjectTag;
     }[];
+    // 영어 필드들 추가
+    title_en?: string;
+    description_en?: string;
+    content_en?: string;
+    category_en?: string;
+    client_en?: string;
+    country_en?: string;
+    industry_en?: string;
   };
+  locale: Locale;
 }
 
 // YouTube URL 변환 함수들
@@ -55,7 +65,7 @@ const getYouTubeThumbnailFallback = (url: string) => {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 };
 
-export default function ProjectDetail({ project }: ProjectDetailProps) {
+export default function ProjectDetail({ project, locale }: ProjectDetailProps) {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
   const [thumbnailSrc, setThumbnailSrc] = useState('');
@@ -96,8 +106,22 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     ? [...project.project_images].sort((a, b) => a.sort_order - b.sort_order)
     : [];
 
-  // 날짜 형식 변환
-  const formattedDate = format(new Date(project.date), 'yyyy년 MM월', { locale: ko });
+  // 다국어 텍스트 선택 함수
+  const getLocalizedText = (koreanText: string, englishText?: string) => {
+    if (locale === 'en' && englishText && englishText.trim()) {
+      return englishText;
+    }
+    return koreanText;
+  };
+
+  // 다국어 날짜 포맷
+  const getFormattedDate = () => {
+    const date = new Date(project.date);
+    if (locale === 'en') {
+      return format(date, 'MMMM yyyy', { locale: enUS });
+    }
+    return format(date, 'yyyy년 MM월', { locale: ko });
+  };
 
   // 공유 기능
   const handleShare = async () => {
@@ -123,9 +147,9 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <p className="text-[#cba967] text-lg mb-1">{project.client}</p>
+            <p className="text-[#cba967] text-lg mb-1">{getLocalizedText(project.client, project.client_en)}</p>
             <h1 className="text-[24px] sm:text-[28px] lg:text-[32px] font-bold text-white tracking-tight leading-tight">
-              {project.title}
+              {getLocalizedText(project.title, project.title_en)}
             </h1>
           </div>
           <button
@@ -205,26 +229,26 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
         {/* 메타 정보 2x2 그리드 */}
         <div className="grid grid-cols-2 md:flex md:flex-nowrap items-start md:items-center justify-between max-w-3xl text-sm gap-2 md:gap-0">
           <div className="w-full md:w-auto px-4 py-2">
-            <h3 className="text-[#cba967] text-xs mb-1">날짜</h3>
-            <p className="text-white">{formattedDate}</p>
+            <h3 className="text-[#cba967] text-xs mb-1">{locale === 'en' ? 'Date' : '날짜'}</h3>
+            <p className="text-white">{getFormattedDate()}</p>
           </div>
           <div className="w-full md:w-auto px-4 py-2">
-            <h3 className="text-[#cba967] text-xs mb-1">카테고리</h3>
-            <p className="text-white">{project.category}</p>
+            <h3 className="text-[#cba967] text-xs mb-1">{locale === 'en' ? 'Category' : '카테고리'}</h3>
+            <p className="text-white">{getLocalizedText(project.category, project.category_en)}</p>
           </div>
           <div className="w-full md:w-auto px-4 py-2">
-            <h3 className="text-[#cba967] text-xs mb-1">산업</h3>
-            <p className="text-white">{project.industry}</p>
+            <h3 className="text-[#cba967] text-xs mb-1">{locale === 'en' ? 'Industry' : '산업'}</h3>
+            <p className="text-white">{getLocalizedText(project.industry, project.industry_en)}</p>
           </div>
           <div className="w-full md:w-auto px-4 py-2">
-            <h3 className="text-[#cba967] text-xs mb-1">국가</h3>
-            <p className="text-white">{project.country}</p>
+            <h3 className="text-[#cba967] text-xs mb-1">{locale === 'en' ? 'Country' : '국가'}</h3>
+            <p className="text-white">{getLocalizedText(project.country, project.country_en)}</p>
           </div>
         </div>
 
         {/* 프로젝트 설명 */}
         <div className="mt-6 px-4">
-          <p className="text-[#C7C7CC] text-base leading-relaxed">{project.description}</p>
+          <p className="text-[#C7C7CC] text-base leading-relaxed">{getLocalizedText(project.description, project.description_en)}</p>
         </div>
 
         {/* 태그 */}
@@ -269,7 +293,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
         <div className="mt-8">
           <div 
             className="prose prose-invert max-w-none [&>p]:text-[#C7C7CC] [&>h1]:text-white [&>h2]:text-white [&>h3]:text-white [&>h4]:text-white [&>h5]:text-white [&>h6]:text-white [&>ul]:text-[#C7C7CC] [&>ol]:text-[#C7C7CC] [&>li]:text-[#C7C7CC] [&>blockquote]:text-[#C7C7CC]" 
-            dangerouslySetInnerHTML={{ __html: project.content }} 
+            dangerouslySetInnerHTML={{ __html: getLocalizedText(project.content, project.content_en) }} 
           />
         </div>
       </div>

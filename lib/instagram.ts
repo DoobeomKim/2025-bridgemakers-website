@@ -66,7 +66,8 @@ class InstagramService {
       if (axios.isAxiosError(error)) {
         console.error('[Instagram API] Error:', {
           status: error.response?.status,
-          message: error.message
+          message: error.message,
+          data: error.response?.data
         });
       }
       return [];
