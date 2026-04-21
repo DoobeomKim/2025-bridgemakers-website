@@ -390,9 +390,10 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
 
     setIsCreatingTag(true);
     try {
-      const newTag = await createTag(tagQuery.trim());
-      setTags(prev => [...prev, newTag]);
-      setSelectedTags(prev => [...prev, newTag]);
+      const result = await createTag(tagQuery.trim());
+      if (!result.success || !result.data) throw new Error(result.error || '태그 생성 실패');
+      setTags(prev => [...prev, result.data!]);
+      setSelectedTags(prev => [...prev, result.data!]);
       setTagQuery('');
     } catch (error) {
       console.error('태그 생성 실패:', error);
