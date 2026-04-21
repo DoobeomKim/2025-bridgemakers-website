@@ -7,7 +7,8 @@
       "name": "translation-json",
       "status": "completed",
       "started_at": "2026-04-22T07:23:40+0900",
-      "summary": "messages/ko|en/dashboard.json 확장 완료 — projectForm, projectList 네임스페이스 추가"
+      "summary": "messages/ko|en/dashboard.json 확장 완료 — projectForm, projectList 네임스페이스 추가",
+      "completed_at": "2026-04-22T07:27:23+0900"
     },
     {
       "step": 1,
