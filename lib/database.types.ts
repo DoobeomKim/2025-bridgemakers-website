@@ -48,6 +48,8 @@ export interface Database {
           video_url?: string
           video_thumbnail_url?: string
           visibility: 'public' | 'private'
+          service?: string
+          is_featured?: boolean
           // 영어 필드들 추가
           title_en?: string
           description_en?: string
@@ -75,6 +77,8 @@ export interface Database {
           video_url?: string
           video_thumbnail_url?: string
           visibility?: 'public' | 'private'
+          service?: string
+          is_featured?: boolean
           // 영어 필드들 추가
           title_en?: string
           description_en?: string
@@ -102,6 +106,8 @@ export interface Database {
           video_url?: string
           video_thumbnail_url?: string
           visibility?: 'public' | 'private'
+          service?: string
+          is_featured?: boolean
           // 영어 필드들 추가
           title_en?: string
           description_en?: string

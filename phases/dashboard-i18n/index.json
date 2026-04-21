@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "project-form",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-04-22T07:27:24+0900",
+      "completed_at": "2026-04-22T09:00:00+0900",
+      "summary": "ProjectForm.tsx 생성 완료 — 2컬럼 이중언어 레이아웃, 양방향 번역 버튼, gallery_images 완전 구현, mode/initialData props, database.types.ts service/is_featured 추가"
     },
     {
       "step": 2,
