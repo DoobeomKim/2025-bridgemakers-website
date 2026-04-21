@@ -4,5 +4,87 @@
   "userLevel": "Current Account Level",
   "admin": "Administrator",
   "premium": "Premium",
-  "basic": "Basic"
-} 
+  "basic": "Basic",
+  "profile": "Profile",
+  "projects": "Projects",
+  "settings": "Account Settings",
+  "site_management": "Site Management",
+  "logout": "Logout",
+
+  "projectList": {
+    "title": "Project Management",
+    "newProject": "New Project",
+    "search": "Search projects...",
+    "deleteSelected": "Delete Selected",
+    "visibilityChange": "Change Visibility",
+    "makePublic": "Make Public",
+    "makePrivate": "Make Private",
+    "selected": "selected",
+    "loading": "Loading projects...",
+    "noPermission": "You do not have permission to view projects."
+  },
+
+  "projectForm": {
+    "createTitle": "Create New Project",
+    "editTitle": "Edit Project",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "backToList": "Back to List",
+
+    "sections": {
+      "basicInfo": "Basic Info",
+      "koreanContent": "Korean Content",
+      "englishContent": "English Content",
+      "media": "Media",
+      "tags": "Tags",
+      "settings": "Settings"
+    },
+
+    "fields": {
+      "client": "Client",
+      "clientPlaceholder": "e.g. Hyundai Motor",
+      "country": "Country",
+      "countryPlaceholder": "e.g. Germany",
+      "date": "Project Date",
+      "service": "Service",
+      "servicePlaceholder": "e.g. BX, Web Design",
+      "title": "Title",
+      "titlePlaceholder": "Enter project title",
+      "description": "Short Description",
+      "descriptionPlaceholder": "Describe the project in one sentence",
+      "content": "Detailed Content",
+      "contentPlaceholder": "Enter the full project details",
+      "category": "Category",
+      "categoryPlaceholder": "e.g. Web Design, Video Production",
+      "industry": "Industry",
+      "industryPlaceholder": "e.g. IT / Telecom / Electronics",
+      "slug": "Slug",
+      "slugPlaceholder": "e.g. 2025-project-name-abc123",
+      "slugHint": "A unique identifier used in the URL. Auto-generated, but can be edited manually.",
+      "visibility": "Visibility",
+      "visibilityPublic": "Public",
+      "visibilityPrivate": "Private",
+      "isFeatured": "Featured Project",
+      "thumbnail": "Thumbnail Image",
+      "thumbnailHint": "16:9 ratio recommended. Max 10 MB.",
+      "gallery": "Gallery Images",
+      "videoUrl": "Video URL",
+      "videoUrlPlaceholder": "Enter a YouTube or Vimeo URL",
+      "tags": "Tags",
+      "tagPlaceholder": "Select or create a tag",
+      "newTag": "Create New Tag"
+    },
+
+    "translate": {
+      "toEnglish": "Translate to English",
+      "toKorean": "Translate to Korean",
+      "translating": "Translating...",
+      "success": "Translation complete.",
+      "error": "An error occurred during translation.",
+      "slugGenerating": "Generating slug...",
+      "slugManualHint": "You can edit the slug manually.",
+      "regenerateSlug": "Regenerate Slug"
+    }
+  }
+}
