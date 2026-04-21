@@ -425,7 +425,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
       const uploadedImages: string[] = [];
       for (const image of images) {
         if (image.file) {
-          const resizedImage = await resizeImage(image.file, 1200, 1200);
+          const resizedImage = await resizeImage(image.file);
           const imageUrl = await uploadImageToStorage(resizedImage, 'projects');
           uploadedImages.push(imageUrl);
         }
@@ -434,7 +434,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
       // 썸네일 업로드
       let thumbnailUrl = '';
       if (thumbnail) {
-        const resizedThumbnail = await resizeImage(thumbnail, 400, 400);
+        const resizedThumbnail = await resizeImage(thumbnail);
         thumbnailUrl = await uploadImageToStorage(resizedThumbnail, 'projects');
       }
 
