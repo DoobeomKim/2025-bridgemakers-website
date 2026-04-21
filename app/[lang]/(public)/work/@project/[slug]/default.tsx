@@ -13,7 +13,7 @@ interface ModalProps {
 export default function ProjectModal({ project, relatedProjects, lang }: ModalProps) {
   return (
     <ModalContainer backUrl={`/${lang}/work`}>
-      <ProjectDetail project={project} />
+      <ProjectDetail project={project} locale={lang} />
       
       {relatedProjects && relatedProjects.length > 0 && (
         <RelatedProjects projects={relatedProjects} lang={lang} />

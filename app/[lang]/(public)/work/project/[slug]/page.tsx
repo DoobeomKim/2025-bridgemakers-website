@@ -90,7 +90,7 @@ export default async function ProjectPage({
           )}
         </div>
         
-        <ProjectDetail project={project} />
+        <ProjectDetail project={project} locale={params.lang as Locale} />
         
         {relatedProjects && relatedProjects.length > 0 && (
           <RelatedProjects projects={relatedProjects} lang={params.lang} />
