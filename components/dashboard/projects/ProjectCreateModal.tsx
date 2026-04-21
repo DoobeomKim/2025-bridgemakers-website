@@ -5,7 +5,7 @@ import type * as React from 'react';
 import { XMarkIcon, PhotoIcon, EyeIcon, EyeSlashIcon, ChevronUpDownIcon, PlusIcon, LanguageIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { createProject, getAllTags, createTag, linkTagsToProject } from '@/lib/projects';
 import { generateSlug } from '@/lib/utils';
-import { uploadImageToStorage, resizeImage } from '@/lib/imageUtils';
+import { uploadImageToStorage } from '@/lib/imageUtils';
 import { Locale } from '@/lib/i18n';
 import { Combobox } from '@headlessui/react';
 import Image from 'next/image';
@@ -421,12 +421,11 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
 
     setIsSubmitting(true);
     try {
-      // 이미지 업로드
+      // 이미지 업로드 (uploadImageToStorage 내부에서 리사이징 처리)
       const uploadedImages: string[] = [];
       for (const image of images) {
         if (image.file) {
-          const resizedImage = await resizeImage(image.file);
-          const imageUrl = await uploadImageToStorage(resizedImage, 'projects');
+          const imageUrl = await uploadImageToStorage(image.file);
           uploadedImages.push(imageUrl);
         }
       }
@@ -434,8 +433,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
       // 썸네일 업로드
       let thumbnailUrl = '';
       if (thumbnail) {
-        const resizedThumbnail = await resizeImage(thumbnail);
-        thumbnailUrl = await uploadImageToStorage(resizedThumbnail, 'projects');
+        thumbnailUrl = await uploadImageToStorage(thumbnail);
       }
 
       // 프로젝트 생성
@@ -455,11 +453,12 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
         translation_status: translationStatus
       };
 
-      const project = await createProject(projectData);
+      const result = await createProject(projectData);
+      if (!result.success || !result.data) throw new Error(result.error || '프로젝트 생성 실패');
 
       // 태그 연결
       if (selectedTags.length > 0) {
-        await linkTagsToProject(project.id, selectedTags.map(tag => tag.id));
+        await linkTagsToProject(result.data.id, selectedTags.map((tag: any) => tag.id));
       }
 
       onSuccess();
@@ -676,7 +675,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                     <div className="relative">
                       <Combobox.Input
                           className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          displayValue={(value) => defaultCategories.find(cat => cat.id === value)?.name || value}
+                          displayValue={(value: string) => defaultCategories.find(cat => cat.id === value)?.name || value}
                           onChange={(e) => setCategoryQuery(e.target.value)}
                           placeholder="카테고리를 선택하세요"
                         />
@@ -726,7 +725,7 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
                       <div className="relative">
                         <Combobox.Input
                           className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          displayValue={(value) => defaultIndustries.find(ind => ind.id === value)?.name || value}
+                          displayValue={(value: string) => defaultIndustries.find(ind => ind.id === value)?.name || value}
                           onChange={(e) => setIndustryQuery(e.target.value)}
                           placeholder="산업을 선택하세요"
                         />
