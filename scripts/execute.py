@@ -183,7 +183,11 @@ class StepExecutor:
         docs_dir = ROOT / "docs"
         if docs_dir.is_dir():
             for doc in sorted(docs_dir.glob("*.md")):
-                sections.append(f"## {doc.stem}\n\n{doc.read_text()}")
+                try:
+                    text = doc.read_text(encoding='utf-8')
+                except UnicodeDecodeError:
+                    text = doc.read_text(encoding='cp949', errors='ignore')
+                sections.append(f"## {doc.stem}\n\n{text.replace(chr(0), '')}")
         return "\n\n---\n\n".join(sections) if sections else ""
 
     @staticmethod
