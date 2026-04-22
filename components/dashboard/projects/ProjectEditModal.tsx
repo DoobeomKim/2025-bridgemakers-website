@@ -1,21 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  XMarkIcon, 
-  DocumentIcon, 
-  PhotoIcon, 
-  LanguageIcon, 
-  ArrowPathIcon,
-  ChevronDownIcon,
-  PlusIcon
-} from '@heroicons/react/24/outline';
-import { Combobox } from '@headlessui/react';
-
+import { updateProject, getAllTags, createTag } from '@/lib/projects';
+import { Locale } from '@/lib/i18n';
+import ProjectForm, { ProjectFormData } from './ProjectForm';
 import LoadingSpinner from '../../common/LoadingSpinner';
+import koMessages from '@/messages/ko/dashboard.json';
+import enMessages from '@/messages/en/dashboard.json';
 
-// 타입 정의
 interface ProjectEditModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,907 +18,213 @@ interface ProjectEditModalProps {
   projectId: string;
 }
 
-interface ProjectFormData {
-  title: string;
-  slug: string;
-  description: string;
-  content: string;
-  category: string;
-  client: string;
-  date: string;
-  country: string;
-  industry: string;
-  service: string;
-  image_url: string;
+interface ProjectWithDetails {
+  id: string;
+  title?: string;
+  title_en?: string;
+  slug?: string;
+  description?: string;
+  description_en?: string;
+  content?: string;
+  content_en?: string;
+  category?: string;
+  category_en?: string;
+  industry?: string;
+  industry_en?: string;
+  client?: string;
+  country?: string;
+  date?: string;
+  service?: string;
+  image_url?: string;
   video_url?: string;
   video_thumbnail_url?: string;
-  visibility: 'public' | 'private';
-  is_featured: boolean;
-  tags: string[];
-  // 영어 번역 필드들
-  title_en?: string;
-  description_en?: string;
-  content_en?: string;
-  category_en?: string;
-  client_en?: string;
-  country_en?: string;
-  industry_en?: string;
+  visibility?: 'public' | 'private';
+  is_featured?: boolean;
   translation_status?: string;
+  project_tag_relations?: { project_tags?: { id: string; name: string } }[];
+  project_images?: { id: string; image_url: string; sort_order: number }[];
 }
 
-interface ProjectWithDetails extends ProjectFormData {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  project_images?: {
-    id: string;
-    image_url: string;
-    sort_order: number;
-  }[];
+function mapProjectToFormData(project: ProjectWithDetails): Partial<ProjectFormData> {
+  return {
+    title: project.title || '',
+    title_en: project.title_en || '',
+    slug: project.slug || '',
+    description: project.description || '',
+    description_en: project.description_en || '',
+    content: project.content || '',
+    content_en: project.content_en || '',
+    category: project.category || '',
+    category_en: project.category_en || '',
+    industry: project.industry || '',
+    industry_en: project.industry_en || '',
+    client: project.client || '',
+    country: project.country || '',
+    date: project.date || '',
+    service: project.service || '',
+    image_url: project.image_url || '',
+    gallery_images: project.project_images
+      ?.sort((a, b) => a.sort_order - b.sort_order)
+      .map(img => img.image_url) || [],
+    video_url: project.video_url || '',
+    video_thumbnail_url: project.video_thumbnail_url || '',
+    visibility: project.visibility || 'private',
+    is_featured: project.is_featured || false,
+    tags: project.project_tag_relations
+      ?.map((r) => r.project_tags?.name).filter((n): n is string => Boolean(n)) || [],
+    translation_status: (project.translation_status as any) || 'pending',
+  };
 }
 
 export default function ProjectEditModal({ isOpen, onClose, onSuccess, locale, projectId }: ProjectEditModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropAreaRef = useRef<HTMLDivElement>(null);
-  const thumbnailFileInputRef = useRef<HTMLInputElement>(null);
-  const thumbnailDropAreaRef = useRef<HTMLDivElement>(null);
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [project, setProject] = useState<ProjectWithDetails | null>(null);
-  const [form, setForm] = useState<ProjectFormData>({
-    title: '',
-    slug: '',
-    description: '',
-    content: '',
-    category: '',
-    client: '',
-    date: '',
-    country: '',
-    industry: '',
-    service: '',
-    image_url: '',
-    video_url: '',
-    video_thumbnail_url: '',
-    visibility: 'public',
-    is_featured: false,
-    tags: []
-  });
-
-  // 영어 번역 관련 상태
-  const [englishForm, setEnglishForm] = useState<{
-    title_en: string;
-    description_en: string;
-    content_en: string;
-    category_en: string;
-    client_en: string;
-    country_en: string;
-    industry_en: string;
-  }>({
-    title_en: '',
-    description_en: '',
-    content_en: '',
-    category_en: '',
-    client_en: '',
-    country_en: '',
-    industry_en: ''
-  });
-
-  const [translating, setTranslating] = useState(false);
-  const [translationStatus, setTranslationStatus] = useState<string>('pending');
-  const [translationError, setTranslationError] = useState<string>('');
-  const [apiUsage, setApiUsage] = useState<{ used: number; limit: number } | null>(null);
-
-  // 이미지 관련 상태
-  const [uploadingImages, setUploadingImages] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isThumbnailDragging, setIsThumbnailDragging] = useState(false);
-
-  // 태그 관련 상태
-  const [tags, setTags] = useState<string[]>([]);
-  const [categoryQuery, setCategoryQuery] = useState('');
-  const [industryQuery, setIndustryQuery] = useState('');
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
+  const t = locale === 'ko' ? (koMessages as any).projectForm : (enMessages as any).projectForm;
 
-  // 프로젝트 데이터 로드
   useEffect(() => {
-    if (isOpen && projectId) {
-      loadProject();
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'hidden';
     }
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen && projectId) loadProject();
   }, [isOpen, projectId]);
 
-  // 태그 로드
-  useEffect(() => {
-    loadTags();
-  }, []);
-
-  // API 사용량 체크
-  useEffect(() => {
-    checkApiUsage();
-  }, []);
-
   const loadProject = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      console.log('🔄 프로젝트 로드 중:', projectId);
-
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('projects')
-        .select(`
-          *,
-          project_images(id, image_url, sort_order)
-        `)
+        .select(`*, project_tag_relations(project_tags(id, name)), project_images(id, image_url, sort_order)`)
         .eq('id', projectId)
         .single();
 
-      if (error) {
-        console.error('❌ 프로젝트 로드 실패:', error);
-        throw error;
-      }
-
-      if (data) {
-        console.log('✅ 프로젝트 로드 성공:', data);
-        setProject(data);
-        
-        // 폼 데이터 설정
-        setForm({
-          title: data.title || '',
-          slug: data.slug || '',
-          description: data.description || '',
-          content: data.content || '',
-          category: data.category || '',
-          client: data.client || '',
-          date: data.date || '',
-          country: data.country || '',
-          industry: data.industry || '',
-          service: data.service || '',
-          image_url: data.image_url || '',
-          video_url: data.video_url || '',
-          video_thumbnail_url: data.video_thumbnail_url || '',
-          visibility: data.visibility || 'public',
-          is_featured: data.is_featured || false,
-          tags: data.tags || []
-        });
-
-        // 영어 번역 데이터 설정
-        setEnglishForm({
-          title_en: data.title_en || '',
-          description_en: data.description_en || '',
-          content_en: data.content_en || '',
-          category_en: data.category_en || '',
-          client_en: data.client_en || '',
-          country_en: data.country_en || '',
-          industry_en: data.industry_en || ''
-        });
-
-        setTranslationStatus(data.translation_status || 'pending');
-
-        // 갤러리 이미지 설정 (추후 구현 예정)
-        }
-      } catch (error) {
-      console.error('❌ 프로젝트 로드 중 오류:', error);
-      } finally {
+      if (fetchError) throw fetchError;
+      setProject(data);
+    } catch (err: any) {
+      console.error('프로젝트 로드 실패:', err);
+      setError(err.message || '프로젝트를 불러오지 못했습니다.');
+    } finally {
       setLoading(false);
     }
   };
 
-  const loadTags = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('project_tags')
-        .select('name')
-        .order('name');
+  const handleSubmit = async (data: ProjectFormData) => {
+    setError(null);
 
-      if (error) {
-        console.error('❌ 태그 로드 실패:', error);
-        setTags([]);
-        return;
-      }
-
-      const tagNames = data?.map((tag: any) => tag.name) || [];
-      setTags(tagNames);
-    } catch (error) {
-      console.error('❌ 태그 로드 중 오류:', error);
-      setTags([]);
-    }
-  };
-
-  const checkApiUsage = async () => {
-    try {
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'check_usage' })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.usage && typeof data.usage.used === 'number' && typeof data.usage.limit === 'number') {
-          setApiUsage(data.usage);
-    } else {
-          setApiUsage(null);
-        }
-      } else {
-        setApiUsage(null);
-      }
-    } catch (error) {
-      console.error('❌ API 사용량 확인 실패:', error);
-      setApiUsage(null);
-    }
-  };
-
-  const handleAutoTranslate = async () => {
-    setTranslating(true);
-    setTranslationError('');
-
-    try {
-      const fieldsToTranslate = [
-        { key: 'title_en', value: form.title },
-        { key: 'description_en', value: form.description },
-        { key: 'content_en', value: form.content },
-        { key: 'category_en', value: form.category },
-        { key: 'client_en', value: form.client },
-        { key: 'country_en', value: form.country },
-        { key: 'industry_en', value: form.industry }
-      ];
-
-      const translations: any = {};
-
-      for (const field of fieldsToTranslate) {
-        if (field.value && field.value.trim()) {
-          const response = await fetch('/api/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: field.value,
-              target_lang: 'EN'
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            translations[field.key] = data.translation;
-          } else {
-            const errorData = await response.json();
-            throw new Error(errorData.error || '번역 실패');
-          }
-        }
-      }
-
-      setEnglishForm(prev => ({
-        ...prev,
-        ...translations
-      }));
-
-      setTranslationStatus('auto_translated');
-      await checkApiUsage();
-
-    } catch (error: any) {
-      console.error('❌ 자동 번역 실패:', error);
-      setTranslationError(error.message || '번역 중 오류가 발생했습니다.');
-    } finally {
-      setTranslating(false);
-    }
-  };
-
-  const handleFormChange = (field: keyof ProjectFormData, value: any) => {
-    setForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // 슬러그 자동 생성
-    if (field === 'title') {
-      const slug = value
-        .toLowerCase()
-        .replace(/[^a-z0-9가-힣\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .trim();
-      setForm(prev => ({
-        ...prev,
-        slug
-      }));
-    }
-  };
-
-  const handleEnglishFormChange = (field: keyof typeof englishForm, value: string) => {
-    setEnglishForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    if (translationStatus === 'auto_translated' || translationStatus === 'pending') {
-      setTranslationStatus('manual_edited');
-    }
-  };
-
-  const handleTagsChange = (newTags: string[]) => {
-    setForm(prev => ({
-      ...prev,
-      tags: newTags
-    }));
-  };
-
-  const handleError = (message: string) => {
-    console.error('❌ 에러:', message);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      console.log('🔄 프로젝트 업데이트 중...');
-
-      // 프로젝트 데이터 업데이트
-      const updateData = {
-        ...form,
-        ...englishForm,
-        translation_status: translationStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error: projectError } = await supabase
-        .from('projects')
-        .update(updateData)
-        .eq('id', projectId);
-
-      if (projectError) {
-        console.error('❌ 프로젝트 업데이트 실패:', projectError);
-        throw projectError;
-      }
-
-            // 갤러리 이미지 처리는 추후 구현 예정
-
-      console.log('✅ 프로젝트 업데이트 완료');
-      onSuccess();
-      onClose();
-
-    } catch (error: any) {
-      console.error('❌ 프로젝트 업데이트 실패:', error);
-      alert(`프로젝트 업데이트에 실패했습니다: ${error.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <LoadingSpinner />
-      </div>
+    const allTagsResult = await getAllTags();
+    const allTags = allTagsResult.data;
+    const tagIds = await Promise.all(
+      data.tags.map(async (name) => {
+        const existing = allTags.find(t => t.name === name);
+        if (existing) return existing.id;
+        const result = await createTag(name);
+        if (!result.success || !result.data) throw new Error(`태그 생성 실패: ${name}`);
+        return result.data.id;
+      })
     );
-  }
+
+    const updated = await updateProject(projectId, {
+      title: data.title,
+      title_en: data.title_en || null,
+      slug: data.slug,
+      description: data.description,
+      description_en: data.description_en || null,
+      content: data.content,
+      content_en: data.content_en || null,
+      category: data.category,
+      category_en: data.category_en || null,
+      industry: data.industry,
+      industry_en: data.industry_en || null,
+      client: data.client,
+      country: data.country,
+      date: data.date,
+      service: data.service,
+      image_url: data.image_url,
+      video_url: data.video_url || null,
+      video_thumbnail_url: data.video_thumbnail_url || null,
+      visibility: data.visibility,
+      is_featured: data.is_featured,
+      translation_status: data.translation_status,
+      tags: tagIds,
+    });
+    if (!updated) throw new Error('프로젝트 수정 실패');
+
+    await supabase.from('project_images').delete().eq('project_id', projectId);
+
+    if (data.gallery_images.length > 0) {
+      const { error: imgError } = await supabase
+        .from('project_images')
+        .insert(
+          data.gallery_images.map((url, index) => ({
+            project_id: projectId,
+            image_url: url,
+            sort_order: index,
+          }))
+        );
+      if (imgError) console.error('갤러리 이미지 저장 실패:', imgError);
+    }
+
+    onSuccess();
+    onClose();
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-700">
-        <h2 className="text-xl font-semibold text-white">프로젝트 수정</h2>
-        <button
-          onClick={onClose}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
-          disabled={saving}
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-75"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20">
+        <div
+          className="relative bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+          onClick={(e) => e.stopPropagation()}
         >
-          <XMarkIcon className="w-5 h-5" />
-          목록으로
-        </button>
-      </div>
+          <div className="flex items-center justify-between p-6 border-b border-gray-700 shrink-0">
+            <h2 className="text-xl font-semibold text-white">
+              {t?.editTitle ?? '프로젝트 수정'}
+            </h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
 
-      {/* DeepL API 사용량 표시 */}
-      {apiUsage && (
-        <div className="px-6 py-3 bg-gray-800 border-b border-gray-700">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-blue-400">
-              📡 DeepL API 사용량: {apiUsage.used.toLocaleString()} / {apiUsage.limit.toLocaleString()} 문자
-            </span>
-            <span className="text-blue-400 font-medium">
-              남은 사용량: {(apiUsage.limit - apiUsage.used).toLocaleString()} 문자
-            </span>
+          {error && (
+            <div className="px-6 py-3 bg-red-900/50 border-b border-red-700 shrink-0">
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <LoadingSpinner />
+              </div>
+            ) : (
+              <ProjectForm
+                mode="edit"
+                initialData={project ? mapProjectToFormData(project) : undefined}
+                onSubmit={handleSubmit}
+                onCancel={onClose}
+                locale={locale as Locale}
+                translations={t}
+              />
+            )}
           </div>
         </div>
-      )}
-
-      {/* 폼 */}
-      <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-6">
-              {/* 기본 정보 */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white">기본 정보</h3>
-                
-                {/* 프로젝트 제목 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    프로젝트 제목 *
-                  </label>
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) => handleFormChange('title', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="프로젝트 제목을 입력하세요"
-                    required
-                  />
-                </div>
-
-                {/* 프로젝트 설명 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    프로젝트 설명 *
-                  </label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => handleFormChange('description', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
-                    required
-                  />
-                </div>
-
-                {/* 프로젝트 내용 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    프로젝트 내용
-                  </label>
-                  <textarea
-                    value={form.content}
-                    onChange={(e) => handleFormChange('content', e.target.value)}
-                    rows={6}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="프로젝트에 대한 자세한 내용을 입력하세요"
-                  />
-                </div>
-              </div>
-
-              {/* 클라이언트 정보 */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white">클라이언트 정보</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 클라이언트명 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      클라이언트명
-                  </label>
-                  <input
-                    type="text"
-                    value={form.client}
-                      onChange={(e) => handleFormChange('client', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="클라이언트명을 입력하세요"
-                  />
-                </div>
-
-                  {/* 국가 */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      국가
-                    </label>
-                    <input
-                      type="text"
-                      value={form.country}
-                      onChange={(e) => handleFormChange('country', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      placeholder="국가를 입력하세요"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 카테고리 및 산업 */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white">분류</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 카테고리 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      카테고리
-                  </label>
-                  <Combobox
-                    value={form.category}
-                      onChange={(value) => handleFormChange('category', value)}
-                  >
-                    <div className="relative">
-                        <Combobox.Input
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          displayValue={(value: string) => value || ''}
-                          onChange={(e) => setCategoryQuery(e.target.value)}
-                          placeholder="카테고리를 선택하세요"
-                        />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-                          <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-                        </Combobox.Button>
-                        <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-gray-800 py-1 text-base shadow-lg ring-1 ring-gray-600 ring-opacity-5 focus:outline-none">
-                          {['웹사이트', '모바일앱', '브랜딩', 'UI/UX', '개발']
-                            .filter(category => 
-                              category.toLowerCase().includes(categoryQuery.toLowerCase())
-                            )
-                            .map((category) => (
-                          <Combobox.Option
-                                key={category}
-                                value={category}
-                            className={({ active }) =>
-                                  `relative cursor-default select-none py-2 pl-10 pr-4 ${
-                                    active ? 'bg-amber-600 text-white' : 'text-gray-300'
-                                  }`
-                                }
-                              >
-                                {({ selected }) => (
-                                  <>
-                                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                      {category}
-                                    </span>
-                                    {selected && (
-                                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-500">
-                                        ✓
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                          </Combobox.Option>
-                        ))}
-                      </Combobox.Options>
-                    </div>
-                  </Combobox>
-                </div>
-
-                  {/* 산업 */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                    산업
-                  </label>
-                  <Combobox
-                    value={form.industry}
-                      onChange={(value) => handleFormChange('industry', value)}
-                  >
-                    <div className="relative">
-                        <Combobox.Input
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          displayValue={(value: string) => value || ''}
-                          onChange={(e) => setIndustryQuery(e.target.value)}
-                          placeholder="산업을 선택하세요"
-                        />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-                          <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-                        </Combobox.Button>
-                        <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-gray-800 py-1 text-base shadow-lg ring-1 ring-gray-600 ring-opacity-5 focus:outline-none">
-                          {['의료', '교육', '금융', '커머스', '제조업', '서비스업']
-                            .filter(industry => 
-                              industry.toLowerCase().includes(industryQuery.toLowerCase())
-                            )
-                            .map((industry) => (
-                          <Combobox.Option
-                                key={industry}
-                                value={industry}
-                            className={({ active }) =>
-                                  `relative cursor-default select-none py-2 pl-10 pr-4 ${
-                                    active ? 'bg-amber-600 text-white' : 'text-gray-300'
-                                  }`
-                                }
-                              >
-                                {({ selected }) => (
-                                  <>
-                                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                      {industry}
-                                    </span>
-                                    {selected && (
-                                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-500">
-                                        ✓
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                          </Combobox.Option>
-                        ))}
-                      </Combobox.Options>
-                    </div>
-                  </Combobox>
-                  </div>
-                </div>
-
-                {/* 추가 필드들 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      프로젝트 날짜
-                  </label>
-                  <input
-                      type="date"
-                      value={form.date}
-                      onChange={(e) => handleFormChange('date', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-              </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      서비스 유형
-                  </label>
-                    <input
-                      type="text"
-                      value={form.service}
-                      onChange={(e) => handleFormChange('service', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      placeholder="서비스 유형을 입력하세요"
-                    />
-                  </div>
-              </div>
-
-                {/* 슬러그 */}
-              <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    URL 슬러그
-                </label>
-                <input
-                    type="text"
-                    value={form.slug}
-                    onChange={(e) => handleFormChange('slug', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="url-slug"
-                />
-              </div>
-
-                {/* 공개 설정 및 추천 설정 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      공개 설정
-                </label>
-                    <select
-                      value={form.visibility}
-                      onChange={(e) => handleFormChange('visibility', e.target.value as 'public' | 'private')}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    >
-                      <option value="public">공개</option>
-                      <option value="private">비공개</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="is_featured"
-                      checked={form.is_featured}
-                      onChange={(e) => handleFormChange('is_featured', e.target.checked)}
-                      className="h-4 w-4 text-amber-600 focus:ring-amber-600 border-gray-600 rounded bg-gray-700"
-                    />
-                    <label htmlFor="is_featured" className="ml-2 text-sm text-gray-300">
-                      추천 프로젝트로 설정
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* 자동 번역 섹션 */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-white">🌐 다국어 지원</h3>
-                      <button
-                        type="button"
-                    onClick={handleAutoTranslate}
-                    disabled={translating || !form.title}
-                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {translating ? (
-                      <>
-                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                        번역 중...
-                      </>
-                    ) : (
-                      <>
-                        <LanguageIcon className="h-4 w-4" />
-                        영어로 AI 번역하기
-                      </>
-                    )}
-                      </button>
-                    </div>
-
-                {/* 번역 상태 표시 */}
-                {translationError && (
-                  <div className="p-3 bg-red-900 border border-red-700 rounded-md">
-                    <p className="text-sm text-red-400">❌ {translationError}</p>
-                      </div>
-                )}
-
-                {translationStatus === 'auto_translated' && (
-                  <div className="p-3 bg-green-900 border border-green-700 rounded-md">
-                    <p className="text-sm text-green-400">✅ 번역이 완료되었습니다. 아래에서 수정할 수 있습니다.</p>
-                    </div>
-                  )}
-
-                {/* 영어 번역 입력 필드들 */}
-                {(translationStatus === 'auto_translated' || translationStatus === 'manual_edited') && (
-                  <div className="space-y-4 p-4 bg-gray-800 rounded-lg">
-                    <h4 className="text-md font-medium text-white flex items-center gap-2">
-                      🇺🇸 영어 번역
-                    </h4>
-                    
-                    {/* 영어 제목 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        영어 제목
-                      </label>
-                  <input
-                        type="text"
-                        value={englishForm.title_en}
-                        onChange={(e) => handleEnglishFormChange('title_en', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        placeholder="English title"
-                      />
-              </div>
-
-                    {/* 영어 설명 */}
-              <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        영어 설명
-                </label>
-                <textarea
-                        value={englishForm.description_en}
-                        onChange={(e) => handleEnglishFormChange('description_en', e.target.value)}
-                  rows={3}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        placeholder="English description"
-                />
-              </div>
-
-                    {/* 영어 내용 */}
-              <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        영어 내용
-                </label>
-                <textarea
-                        value={englishForm.content_en}
-                        onChange={(e) => handleEnglishFormChange('content_en', e.target.value)}
-                        rows={6}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                        placeholder="English content"
-                      />
-              </div>
-
-                    {/* 기타 영어 필드들 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          영어 클라이언트명
-                </label>
-                        <input
-                          type="text"
-                          value={englishForm.client_en}
-                          onChange={(e) => handleEnglishFormChange('client_en', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="English client name"
-                        />
-                    </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          영어 국가명
-                        </label>
-                    <input
-                      type="text"
-                          value={englishForm.country_en}
-                          onChange={(e) => handleEnglishFormChange('country_en', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="English country name"
-                        />
-                  </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          영어 카테고리
-                        </label>
-                        <input
-                          type="text"
-                          value={englishForm.category_en}
-                          onChange={(e) => handleEnglishFormChange('category_en', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="English category"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          영어 산업
-                        </label>
-                        <input
-                          type="text"
-                          value={englishForm.industry_en}
-                          onChange={(e) => handleEnglishFormChange('industry_en', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="English industry"
-                        />
-                    </div>
-                </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 미디어 */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white">미디어</h3>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    대표 이미지 URL
-                </label>
-                  <input
-                    type="url"
-                    value={form.image_url}
-                    onChange={(e) => handleFormChange('image_url', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    비디오 URL (선택사항)
-                  </label>
-                <input
-                    type="url"
-                    value={form.video_url || ''}
-                    onChange={(e) => handleFormChange('video_url', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="https://example.com/video.mp4"
-                />
-              </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    비디오 썸네일 URL (선택사항)
-                  </label>
-                  <input
-                    type="url"
-                    value={form.video_thumbnail_url || ''}
-                    onChange={(e) => handleFormChange('video_thumbnail_url', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="https://example.com/thumbnail.jpg"
-                  />
-                </div>
-
-                                {/* 갤러리 이미지 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    갤러리 이미지
-                  </label>
-                  <div className="text-gray-400 text-sm">
-                    갤러리 이미지 관리는 추후 구현 예정입니다.
-                  </div>
-                </div>
-            </div>
-
-
-
-              {/* 액션 버튼 */}
-              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-700">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={saving}
-                  className="px-4 py-2 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
-              >
-                {saving ? (
-                    <>
-                      <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
-                    저장 중...
-                    </>
-                ) : (
-                    '프로젝트 업데이트'
-                )}
-              </button>
-            </div>
-            </div>
-      </form>
+      </div>
     </div>
   );
 }

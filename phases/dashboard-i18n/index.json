@@ -1,0 +1,47 @@
+{
+  "project": "Bridgemakers Website",
+  "phase": "dashboard-i18n",
+  "steps": [
+    {
+      "step": 0,
+      "name": "translation-json",
+      "status": "completed",
+      "started_at": "2026-04-22T07:23:40+0900",
+      "summary": "messages/ko|en/dashboard.json 확장 완료 — projectForm, projectList 네임스페이스 추가",
+      "completed_at": "2026-04-22T07:27:23+0900"
+    },
+    {
+      "step": 1,
+      "name": "project-form",
+      "status": "completed",
+      "started_at": "2026-04-22T07:27:24+0900",
+      "completed_at": "2026-04-22T07:34:01+0900",
+      "summary": "ProjectForm.tsx 생성 완료 — 2컬럼 이중언어 레이아웃, 양방향 번역 버튼, gallery_images 완전 구현, mode/initialData props, database.types.ts service/is_featured 추가"
+    },
+    {
+      "step": 2,
+      "name": "create-refactor",
+      "status": "completed",
+      "started_at": "2026-04-22T10:00:00+0900",
+      "completed_at": "2026-04-22T10:05:00+0900",
+      "summary": "ProjectCreateModal 리팩터링 완료 — ProjectForm 래퍼, project_images 저장, 태그 ID 변환"
+    },
+    {
+      "step": 3,
+      "name": "edit-refactor",
+      "status": "completed",
+      "started_at": "2026-04-22T10:05:00+0900",
+      "completed_at": "2026-04-22T10:10:00+0900",
+      "summary": "ProjectEditModal 리팩터링 완료 — ProjectForm 래퍼, project_images 교체, 태그 ID 변환, initialData 매핑"
+    },
+    {
+      "step": 4,
+      "name": "dashboard-ui-i18n",
+      "status": "completed",
+      "started_at": "2026-04-22T10:10:00+0900",
+      "completed_at": "2026-04-22T10:18:00+0900",
+      "summary": "대시보드 UI i18n 완료 — translations 타입 수정, ProjectsClient 번역 첫 연결, alert/confirm 제거, layout 로그 정리"
+    }
+  ],
+  "created_at": "2026-04-22T07:23:40+0900"
+}

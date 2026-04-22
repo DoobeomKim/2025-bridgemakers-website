@@ -1,39 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createProject, getAllTags, createTag, linkTagsToProject } from '@/lib/projects';
 import { Locale } from '@/lib/i18n';
+import { useAuth } from '@/components/auth/AuthContext';
+import { UserRole } from '@/types/supabase';
 import ProjectForm, { ProjectFormData } from './ProjectForm';
 import koMessages from '@/messages/ko/dashboard.json';
 import enMessages from '@/messages/en/dashboard.json';
 
-interface ProjectCreateModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+interface ProjectCreatePageProps {
   locale: Locale;
 }
 
-export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale }: ProjectCreateModalProps) {
+export default function ProjectCreatePage({ locale }: ProjectCreatePageProps) {
+  const router = useRouter();
+  const { userProfile, isLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
   const t = locale === 'ko' ? (koMessages as any).projectForm : (enMessages as any).projectForm;
 
-  useEffect(() => {
-    const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) onClose();
-    };
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscKey);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleEscKey);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  const handleBack = () => {
+    router.push(`/${locale}/dashboard/projects`);
+  };
 
   const handleSubmit = async (data: ProjectFormData) => {
     setError(null);
@@ -92,47 +84,50 @@ export default function ProjectCreateModal({ isOpen, onClose, onSuccess, locale 
       await linkTagsToProject(result.data.id, tagIds);
     }
 
-    onSuccess();
-    onClose();
+    router.push(`/${locale}/dashboard/projects`);
   };
 
-  if (!isOpen) return null;
+  if (isLoading) {
+    return <div className="text-white p-8">Loading...</div>;
+  }
+
+  if (!userProfile || userProfile.user_level !== UserRole.ADMIN) {
+    return (
+      <div className="text-red-500 p-8 text-center text-lg font-bold">
+        관리자만 접근할 수 있습니다.
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-75"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20">
-        <div
-          className="relative bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+    <div className="max-w-4xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-sm"
         >
-          <div className="flex items-center justify-between p-6 border-b border-gray-700 shrink-0">
-            <h2 className="text-xl font-semibold text-white">
-              {t?.createTitle ?? '새 프로젝트 만들기'}
-            </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+          <ArrowLeftIcon className="h-4 w-4" />
+          {t?.backToList ?? '목록으로'}
+        </button>
+        <h1 className="text-xl font-semibold text-white">
+          {t?.createTitle ?? '새 프로젝트 만들기'}
+        </h1>
+      </div>
 
-          {error && (
-            <div className="px-6 py-3 bg-red-900/50 border-b border-red-700 shrink-0">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
-
-          <div className="flex-1 overflow-hidden">
-            <ProjectForm
-              mode="create"
-              onSubmit={handleSubmit}
-              onCancel={onClose}
-              locale={locale}
-              translations={t}
-            />
-          </div>
+      {error && (
+        <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-md">
+          <p className="text-sm text-red-400">{error}</p>
         </div>
+      )}
+
+      <div className="bg-gray-900 rounded-lg shadow-xl overflow-hidden">
+        <ProjectForm
+          mode="create"
+          onSubmit={handleSubmit}
+          onCancel={handleBack}
+          locale={locale}
+          translations={t}
+        />
       </div>
     </div>
   );
