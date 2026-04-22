@@ -17,8 +17,9 @@ interface Project {
   industry: string;
   date: string;
   visibility: string;
-  // 영어 필드들 추가
+  // 영어 필드들
   title_en?: string;
+  description_en?: string;
   client_en?: string;
   category_en?: string;
   industry_en?: string;
