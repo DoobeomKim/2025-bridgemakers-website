@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { SupabaseClient, User, Session } from '@supabase/auth-helpers-nextjs';
 import type { AuthChangeEvent } from '@supabase/supabase-js';
@@ -60,9 +60,17 @@ export const AuthProvider = ({
   const [user, setUser] = useState<User | null>(initialSession?.user || null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  
+
   // 클라이언트 컴포넌트에서 직접 Supabase 클라이언트 생성
   const supabase = createClientComponentClient<Database>();
+
+  // 스테일 클로저 없이 최신 값을 참조하기 위한 refs
+  const userProfileRef = useRef<UserProfile | null>(null);
+  const lastProcessedUserIdRef = useRef<string | null>(initialSession?.user?.id || null);
+
+  useEffect(() => {
+    userProfileRef.current = userProfile;
+  }, [userProfile]);
 
   // 세션 상태 체크 함수
   const checkSession = async () => {
@@ -146,17 +154,33 @@ export const AuthProvider = ({
         hasSession: !!currentSession,
         userId: currentSession?.user?.id
       });
-      
-      // 로그인/로그아웃 이벤트만 처리
-      if (['SIGNED_IN', 'SIGNED_OUT'].includes(event)) {
-        setSession(currentSession);
-        setUser(currentSession?.user || null);
-        
-        if (currentSession?.user) {
-          await loadUserProfile(currentSession.user);
-        } else {
-          setUserProfile(null);
+
+      if (event === 'SIGNED_IN' && currentSession?.user) {
+        const incomingUserId = currentSession.user.id;
+
+        // 동일 사용자의 토큰 갱신(TOKEN_REFRESHED → SIGNED_IN)인 경우:
+        // setUser로 새 객체를 넘기되, loadUserProfile은 재호출하지 않아 불필요한 리렌더를 최소화
+        if (
+          lastProcessedUserIdRef.current === incomingUserId &&
+          userProfileRef.current !== null
+        ) {
+          console.log('🔄 동일 사용자 토큰 갱신 - 세션만 조용히 업데이트');
+          setSession(currentSession);
+          setUser(currentSession.user);
+          return;
         }
+
+        // 신규 로그인이거나 프로필이 아직 없는 경우에만 전체 플로우 실행
+        lastProcessedUserIdRef.current = incomingUserId;
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await loadUserProfile(currentSession.user);
+
+      } else if (event === 'SIGNED_OUT') {
+        lastProcessedUserIdRef.current = null;
+        setSession(null);
+        setUser(null);
+        setUserProfile(null);
       }
     });
 

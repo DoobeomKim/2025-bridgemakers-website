@@ -168,8 +168,10 @@ export default function ProjectForm({
   const [tagQuery, setTagQuery] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagCreateError, setTagCreateError] = useState<string | null>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
-  // DB suggestions for service / category / industry
+  // DB suggestions for client / service / category / industry
+  const [clientOptions, setClientOptions] = useState<string[]>([]);
   const [serviceOptions, setServiceOptions] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [industryOptions, setIndustryOptions] = useState<string[]>([]);
@@ -227,9 +229,10 @@ export default function ProjectForm({
     // 모든 컬럼 시도 (DB 마이그레이션 완료 후 전체 동작)
     const { data, error } = await supabase
       .from('projects')
-      .select('service, category, industry, category_en, industry_en');
+      .select('client, service, category, industry, category_en, industry_en');
 
     if (!error && data) {
+      setClientOptions(unique(data.map((p: any) => p.client)));
       setServiceOptions(unique(data.map((p: any) => p.service)));
       setCategoryOptions(unique(data.map((p: any) => p.category)));
       setIndustryOptions(unique(data.map((p: any) => p.industry)));
@@ -242,9 +245,10 @@ export default function ProjectForm({
     console.warn('[fetchSuggestions] extended columns unavailable, falling back:', error?.message);
     const { data: basic, error: basicError } = await supabase
       .from('projects')
-      .select('category, industry');
+      .select('client, category, industry');
     if (basicError) { console.error('[fetchSuggestions] fallback error:', basicError); return; }
     if (basic) {
+      setClientOptions(unique(basic.map((p: any) => p.client)));
       setCategoryOptions(unique(basic.map((p: any) => p.category)));
       setIndustryOptions(unique(basic.map((p: any) => p.industry)));
     }
@@ -419,6 +423,46 @@ export default function ProjectForm({
     }
   };
 
+  // 쉼표(,) 입력 시 태그 즉시 추가 — 기존 태그면 토글, 신규면 생성
+  // tagQuery를 먼저 비워서 Combobox 드롭다운이 열리지 않도록 한다
+  const handleTagInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== ',') return;
+    e.preventDefault();
+
+    const query = tagQuery.trim();
+    if (!query) return;
+
+    // 드롭다운이 뜨기 전에 React 상태와 DOM 입력창을 동시에 초기화
+    setTagQuery('');
+    if (tagInputRef.current) tagInputRef.current.value = '';
+
+    const existingTag = allTags.find(t => t.name.toLowerCase() === query.toLowerCase());
+    if (existingTag) {
+      // 이미 DB에 있는 태그 → 선택만 토글
+      if (!selectedTagNames.includes(existingTag.name)) {
+        setSelectedTagNames(prev => [...prev, existingTag.name]);
+      }
+      return;
+    }
+
+    // DB에 없는 신규 태그 → 저장한 query로 직접 생성 (setTagQuery('')로 인한 stale closure 방지)
+    if (isCreatingTag) return;
+    setIsCreatingTag(true);
+    setTagCreateError(null);
+    try {
+      const result = await createTag(query);
+      if (!result.success || !result.data) throw new Error(result.error || 'Tag creation failed');
+      setAllTags(prev => prev.some(t => t.id === result.data!.id) ? prev : [...prev, result.data!]);
+      if (!selectedTagNames.includes(result.data.name)) {
+        setSelectedTagNames(prev => [...prev, result.data!.name]);
+      }
+    } catch (err: any) {
+      setTagCreateError(err.message);
+    } finally {
+      setIsCreatingTag(false);
+    }
+  };
+
   // Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -473,12 +517,12 @@ export default function ProjectForm({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>{t?.fields?.client ?? 'Client'}</label>
-                  <input
-                    type="text"
+                  <SuggestCombobox
                     value={form.client}
-                    onChange={e => setField('client', e.target.value)}
-                    className={inputCls}
+                    onChange={val => setField('client', val)}
+                    options={clientOptions}
                     placeholder={t?.fields?.clientPlaceholder ?? 'e.g. Hyundai Motor'}
+                    className={inputCls}
                   />
                 </div>
                 <div>
@@ -842,8 +886,10 @@ export default function ProjectForm({
               <Combobox value={tagQuery} onChange={setTagQuery}>
                 <div className="relative flex-1">
                   <Combobox.Input className={inputCls}
+                    ref={tagInputRef}
                     placeholder={t?.fields?.tagPlaceholder ?? 'e.g. gamescom, Trade Fair Video'}
-                    onChange={e => setTagQuery(e.target.value)} />
+                    onChange={e => setTagQuery(e.target.value.replace(/,/g, ''))}
+                    onKeyDown={handleTagInputKeyDown} />
                   <Combobox.Options className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-gray-600 focus:outline-none text-sm">
                     {allTags.filter(tag => tag.name.toLowerCase().includes(tagQuery.toLowerCase())).map(tag => (
                       <Combobox.Option key={tag.id} value={tag.name}

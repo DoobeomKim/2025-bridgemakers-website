@@ -54,6 +54,10 @@ URL 패턴: `/{lang}/dashboard/**`
 - **구현**: 실제 Supabase 연동. 검색, 선택, 생성(모달), 삭제, 공개/비공개 전환 모두 동작.
 - **슬러그 생성**: 제목 입력 → 포커스 아웃 시 DeepL로 영어 번역 후 `{year}-{en-title}-{6자리랜덤}` 형식으로 자동 생성. 직접 수정 및 재생성 가능.
 - **제한**: ADMIN 역할만 실제 데이터 로드. PREMIUM은 로딩 상태로 고정됨(조건 분기만 있고 PREMIUM 데이터 로드 로직 없음).
+- **2026-04-22 개선 (ProjectForm)**:
+  - 탭 전환 후 복귀 시 폼 데이터 초기화 버그 수정 (AuthContext SIGNED_IN 이벤트 중복 처리 방지)
+  - Tags 입력창에서 쉼표(`,`) 입력 시 즉시 태그 등록 (기존 태그 선택 or 신규 생성)
+  - Client 필드를 `SuggestCombobox`로 교체 → 기존 등록된 고객사 자동완성 지원
 
 ### `/dashboard/projects/[id]` — 프로젝트 수정
 
@@ -92,7 +96,7 @@ URL 패턴: `/{lang}/dashboard/**`
 - `"use client"` — 클라이언트 컴포넌트
 - `AuthContext`에서 `session`, `userProfile`, `isLoading` 확인
 - 인증 없으면 1초 setTimeout 후 `/{lang}`으로 리다이렉트
-- **개선 여지**: 1초 인위적 지연 제거 가능 (서버 컴포넌트로 전환하면 미들웨어 하나로 커버)
+- **2026-04-22 개선**: `wasEverAuthenticatedRef` 추가 → 토큰 갱신(TOKEN_REFRESHED) 시 auth 상태가 순간 flicker해도 `children`을 언마운트하지 않음. 탭 전환 후 복귀 시 폼 입력 데이터 유지됨.
 
 ### DashboardSidebar (`components/DashboardSidebar.tsx`)
 
@@ -114,9 +118,15 @@ URL 패턴: `/{lang}/dashboard/**`
 middleware.ts          ← 서버사이드: session 없으면 /{lang} 리다이렉트
   ↓
 dashboard/layout.tsx   ← 클라이언트: AuthContext 확인, 1초 후 리다이렉트
+                          wasEverAuthenticatedRef로 토큰 갱신 flicker 방어
   ↓
 각 page.tsx / Client   ← 역할 검사 (ADMIN 전용 페이지는 컴포넌트 내에서 추가 확인)
 ```
+
+### AuthContext (`components/auth/AuthContext.tsx`)
+
+- `onAuthStateChange`에서 SIGNED_IN 처리 시 `lastProcessedUserIdRef` + `userProfileRef`로 동일 사용자 토큰 갱신 이벤트를 감지
+- 동일 사용자의 반복 SIGNED_IN(TOKEN_REFRESHED 연쇄)은 `loadUserProfile` 재호출 없이 세션/유저 객체만 조용히 업데이트 → 불필요한 리렌더 최소화 **(2026-04-22 추가)**
 
 ---
 

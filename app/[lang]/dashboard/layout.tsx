@@ -1,7 +1,7 @@
 "use client";
 
 import { validateLocale, getTranslations } from "@/lib/i18n";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "./components/DashboardSidebar";
 import DashboardHeader from "./components/DashboardHeader";
@@ -20,6 +20,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const locale = validateLocale(langCode);
   const translations = getTranslations(locale, "dashboard");
 
+  // 한 번이라도 인증에 성공한 경우를 기억해두는 ref
+  // 이렇게 하면 토큰 갱신(TOKEN_REFRESHED) 시 auth 상태가 잠깐 flicker해도
+  // children이 언마운트되지 않아 폼 입력 데이터가 날아가지 않는다
+  const wasEverAuthenticatedRef = useRef(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setInitialWaitComplete(true);
@@ -28,64 +33,40 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     return () => clearTimeout(timer);
   }, []);
 
-
-  // 인증되지 않은 사용자는 홈페이지로 리다이렉트
-  useEffect(() => {
-    const redirectUnauthorized = async () => {
-      // 초기 1초 대기가 완료되지 않았으면 대기
-      if (!initialWaitComplete) {
-        return;
-      }
-
-      if (isLoading) {
-        return;
-      }
-
-      const isAuthenticatedForDashboard = userProfile && user && (
-        userProfile.id === user.id && 
-        user.user_metadata?.email_verified
-      );
-      
-      if (!isAuthenticatedForDashboard) {
-        router.push(`/${locale}`);
-        return;
-      }
-    };
-
-    redirectUnauthorized();
-  }, [initialWaitComplete, isLoading, user, userProfile, locale, router]);
-
-  // 초기 1초 대기 중일 때 로딩 화면 표시
-  if (!initialWaitComplete) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#0d1526]">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967] mb-4"></div>
-          <p className="text-white text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 프로필 로딩 중일 때 로딩 화면 표시
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#0d1526]">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967] mb-4"></div>
-          <p className="text-white text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 인증되지 않은 상태일 때 (리다이렉트 전까지 잠시 표시)
-  const isAuthenticatedForDashboard = userProfile && user && (
-    userProfile.id === user.id && 
+  const isAuthenticatedForDashboard = !!(
+    userProfile &&
+    user &&
+    userProfile.id === user.id &&
     user.user_metadata?.email_verified
   );
 
-  if (!isAuthenticatedForDashboard) {
+  // 인증 성공이 확인되면 ref에 기록
+  if (isAuthenticatedForDashboard) {
+    wasEverAuthenticatedRef.current = true;
+  }
+
+  // 인증되지 않은 사용자는 홈페이지로 리다이렉트
+  useEffect(() => {
+    if (!initialWaitComplete || isLoading) return;
+    if (!isAuthenticatedForDashboard) {
+      router.push(`/${locale}`);
+    }
+  }, [initialWaitComplete, isLoading, isAuthenticatedForDashboard, locale, router]);
+
+  // 초기 1초 대기 중이거나 최초 프로필 로딩 중 → 전체 로딩 화면
+  if (!initialWaitComplete || (isLoading && !wasEverAuthenticatedRef.current)) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0d1526]">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#cba967] mb-4"></div>
+          <p className="text-white text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 한 번도 인증된 적 없고 현재도 미인증 → Verifying 화면 (리다이렉트 대기)
+  if (!isAuthenticatedForDashboard && !wasEverAuthenticatedRef.current) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0d1526]">
         <div className="flex flex-col items-center">
@@ -96,6 +77,8 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     );
   }
 
+  // 인증된 상태(또는 토큰 갱신 중 잠깐 flicker 상태) → children 유지
+  // wasEverAuthenticatedRef가 true이면 TOKEN_REFRESHED flicker 동안에도 children을 언마운트하지 않는다
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0d1526]">
       {/* 데스크톱 좌측 사이드바 */}
