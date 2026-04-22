@@ -66,10 +66,14 @@ export default function HomeClient({ locale, projects, dictionary }: HomeClientP
   // 프로젝트 데이터 매핑
   const formattedProjects = (projects || []).map(project => ({
     id: project.id,
-    title: project.title,
+    title: locale === 'ko'
+      ? (project.title || project.title_en || '')
+      : (project.title_en || project.title || ''),
     client: project.client,
     image: project.image_url,
-    category: project.category,
+    category: locale === 'ko'
+      ? (project.category || project.category_en || '')
+      : (project.category_en || project.category || ''),
     href: `/${locale}/work?project=${project.slug}`
   }));
 
