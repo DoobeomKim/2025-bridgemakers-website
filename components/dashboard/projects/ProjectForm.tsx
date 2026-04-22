@@ -221,23 +221,32 @@ export default function ProjectForm({
   };
 
   const fetchSuggestions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('service, category, industry, category_en, industry_en');
-      if (error) { console.error('[fetchSuggestions] Supabase error:', error); return; }
-      if (!data) return;
+    const unique = (arr: (string | null | undefined)[]) =>
+      [...new Set(arr.filter((v): v is string => !!v && v.trim() !== ''))].sort();
 
-      const unique = (arr: (string | null | undefined)[]) =>
-        [...new Set(arr.filter((v): v is string => !!v && v.trim() !== ''))].sort();
+    // 모든 컬럼 시도 (DB 마이그레이션 완료 후 전체 동작)
+    const { data, error } = await supabase
+      .from('projects')
+      .select('service, category, industry, category_en, industry_en');
 
+    if (!error && data) {
       setServiceOptions(unique(data.map((p: any) => p.service)));
       setCategoryOptions(unique(data.map((p: any) => p.category)));
       setIndustryOptions(unique(data.map((p: any) => p.industry)));
       setCategoryEnOptions(unique(data.map((p: any) => p.category_en)));
       setIndustryEnOptions(unique(data.map((p: any) => p.industry_en)));
-    } catch (err) {
-      console.error('[fetchSuggestions] unexpected error:', err);
+      return;
+    }
+
+    // 일부 컬럼 미존재 시 기존 컬럼만으로 fallback
+    console.warn('[fetchSuggestions] extended columns unavailable, falling back:', error?.message);
+    const { data: basic, error: basicError } = await supabase
+      .from('projects')
+      .select('category, industry');
+    if (basicError) { console.error('[fetchSuggestions] fallback error:', basicError); return; }
+    if (basic) {
+      setCategoryOptions(unique(basic.map((p: any) => p.category)));
+      setIndustryOptions(unique(basic.map((p: any) => p.industry)));
     }
   };
 

@@ -145,16 +145,32 @@ export async function getProjectById(id: string): Promise<ProjectWithDetails | n
   }
 }
 
+// DB에 실제로 존재하는 컬럼만 허용 (스키마에 없는 필드 자동 제거)
+const PROJECT_COLUMNS = new Set([
+  'client', 'country', 'date', 'service', 'slug', 'visibility', 'is_featured',
+  'image_url', 'video_url', 'video_thumbnail_url',
+  'title', 'description', 'content', 'category', 'industry',
+  'title_en', 'description_en', 'content_en', 'category_en', 'industry_en',
+  'translation_status', 'name',
+]);
+
+function filterProjectFields(data: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([key]) => PROJECT_COLUMNS.has(key))
+  );
+}
+
 export async function createProject(projectData: any) {
   try {
     // tags 필드를 분리
-    const { tags, ...projectFields } = projectData;
+    const { tags, ...raw } = projectData;
+    const projectFields = filterProjectFields(raw);
 
     // slug 생성 (한글 제목을 로마자로 변환 후 처리)
     if (!projectFields.slug) {
       projectFields.slug = generateSlug(projectFields);
     }
-    
+
     const { data, error } = await supabase
       .from("projects")
       .insert(projectFields)
@@ -181,17 +197,13 @@ export async function updateProject(id: string, updates: any) {
     }
 
     // 태그 정보를 별도로 저장하고 updates에서 제거
-    const tagIds = updates.tags;
-    delete updates.tags;
+    const { tags: tagIds, categoryName, industryName, ...raw } = updates;
+    const projectFields = filterProjectFields(raw);
 
-    // categoryName과 industryName 제거
-    delete updates.categoryName;
-    delete updates.industryName;
-    
     // 프로젝트 정보 업데이트
     const { data, error } = await supabase
       .from("projects")
-      .update(updates)
+      .update(projectFields)
       .eq("id", id)
       .select()
       .single();
