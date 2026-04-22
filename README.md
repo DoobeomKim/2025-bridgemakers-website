@@ -120,6 +120,32 @@ messages/
   - 클라이언트명·국가·제목·카테고리 컨텍스트를 함께 전달해 정확도 향상
   - `ANTHROPIC_API_KEY` 환경 변수 필요
 
+**버그 수정**
+- DB에 없는 컬럼(`is_featured`, `category_en` 등) 전달 시 프로젝트 수정 400 에러 수정
+  - `lib/projects.ts`에 `PROJECT_COLUMNS` 허용 목록 기반 `filterProjectFields()` 추가
+  - `createProject` / `updateProject` 에서 미존재 컬럼 자동 제거
+- `fetchSuggestions` fallback 처리 — EN 컬럼 미존재 시 기본 컬럼만으로 재시도
+
+**다국어 제목 표시 (locale-aware)**
+- 대시보드 프로젝트 리스트: EN 페이지에서 `title_en` 우선, 없으면 `title` fallback
+- `/work` 공개 페이지: `title_en`, `description_en`, `category_en` 쿼리에 추가
+  - async/await 전환 + EN 컬럼 미존재 시 기본 컬럼 fallback (페이지 안 깨짐)
+- 홈 페이지 프로젝트 섹션: `title_en` / `category_en` locale에 맞게 우선 표시
+
+> **DB 마이그레이션 필요** — 아래 SQL을 Supabase SQL Editor에서 실행해야 영문 필드가 완전히 동작합니다:
+> ```sql
+> ALTER TABLE projects
+>   ADD COLUMN IF NOT EXISTS service TEXT,
+>   ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+>   ADD COLUMN IF NOT EXISTS title_en TEXT,
+>   ADD COLUMN IF NOT EXISTS description_en TEXT,
+>   ADD COLUMN IF NOT EXISTS content_en TEXT,
+>   ADD COLUMN IF NOT EXISTS category_en TEXT,
+>   ADD COLUMN IF NOT EXISTS industry_en TEXT,
+>   ADD COLUMN IF NOT EXISTS video_thumbnail_url TEXT,
+>   ADD COLUMN IF NOT EXISTS translation_status TEXT NOT NULL DEFAULT 'pending';
+> ```
+
 ## 배포
 
 Vercel에 자동 배포됩니다. `main` 브랜치 push 시 프로덕션(`ibridgemakers.de`) 배포.
