@@ -240,6 +240,7 @@ export default function ProjectsClient({ locale, translations }: ProjectsClientP
           projects={filteredProjects.map(p => ({
             id: p.id,
             title: p.title || '',
+            title_en: p.title_en || '',
             visibility: p.visibility,
             created_at: p.created_at,
             date: p.date,

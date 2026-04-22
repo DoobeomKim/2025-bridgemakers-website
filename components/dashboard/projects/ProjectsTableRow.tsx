@@ -101,7 +101,11 @@ export default function ProjectsTableRow({
         </div>
       </td>
       <td className="py-1.5 md:py-2 px-2 md:px-4">
-        <div className="font-medium text-xs md:text-sm text-white">{project.title}</div>
+        <div className="font-medium text-xs md:text-sm text-white">
+          {locale === 'ko'
+            ? project.title || project.title_en || '-'
+            : project.title_en || project.title || '-'}
+        </div>
         <div className="text-[10px] md:text-xs text-gray-400">{project.client || '-'}</div>
       </td>
       <td className="hidden md:table-cell py-1.5 md:py-2 px-2 md:px-4">
