@@ -12,13 +12,7 @@ import { useRouter } from "next/navigation";
 
 interface HeaderProps {
   locale: Locale;
-  translations: {
-    dashboard: string;
-    profile: string;
-    settings: string;
-    logout: string;
-    [key: string]: string;
-  };
+  translations: Record<string, any>;
 }
 
 export default function DashboardHeader({ locale, translations }: HeaderProps) {
@@ -59,7 +53,7 @@ export default function DashboardHeader({ locale, translations }: HeaderProps) {
     <header className="bg-[#111827] shadow-md text-white border-b border-[#1f2937]">
       <div className="px-4 py-3 flex justify-between items-center">
         {/* 페이지 제목 (좌측) */}
-        <h1 className="text-xl font-semibold">{translations.dashboard || "대시보드"}</h1>
+        <h1 className="text-xl font-semibold">{translations.dashboard || "Dashboard"}</h1>
 
         {/* 우측 메뉴들 */}
         <div className="flex items-center space-x-4">

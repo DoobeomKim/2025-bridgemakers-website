@@ -19,16 +19,7 @@ import { UserRole } from "@/types/supabase";
 
 interface SidebarProps {
   locale: Locale;
-  translations: {
-    dashboard: string;
-    profile: string;
-    settings: string;
-    projects: string;
-    logout: string;
-    admin: string;
-    site_management: string;
-    [key: string]: string;
-  };
+  translations: Record<string, any>;
   isMobile?: boolean;
 }
 
@@ -60,14 +51,14 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
   // 기본 메뉴 아이템 (모든 사용자가 접근 가능)
   const menuItems = [
     {
-      name: translations.dashboard || "대시보드",
+      name: translations.dashboard || "Dashboard",
       href: `/${locale}/dashboard`,
       icon: HomeIcon,
       active: isActive(""),
       onClick: undefined
     },
     {
-      name: translations.profile || "프로필 설정",
+      name: translations.profile || "Profile",
       icon: UserIcon,
       active: isActive("/profile"),
       onClick: handleProfileClick
@@ -77,7 +68,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
   // Admin 권한이 있으면 관리자 메뉴 추가
   if (userProfile?.user_level === UserRole.ADMIN) {
     menuItems.unshift({
-      name: translations.admin || "관리자",
+      name: translations.admin || "Admin",
       href: `/${locale}/dashboard/admin`,
       icon: ShieldCheckIcon,
       active: isActive("/admin"),
@@ -87,21 +78,21 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
     // Admin 전용 추가 메뉴
     menuItems.push(
       {
-        name: translations.projects || "프로젝트",
+        name: translations.projects || "Projects",
         href: `/${locale}/dashboard/projects`,
         icon: DocumentTextIcon,
         active: isActive("/projects"),
         onClick: undefined
       },
       {
-        name: translations.settings || "계정 관리",
+        name: translations.settings || "Settings",
         href: `/${locale}/dashboard/settings`,
         icon: Cog6ToothIcon,
         active: isActive("/settings"),
         onClick: undefined
       },
       {
-        name: translations.site_management || "사이트 관리",
+        name: translations.site_management || "Site Management",
         href: `/${locale}/dashboard/site-management`,
         icon: GlobeAltIcon,
         active: isActive("/site-management"),
@@ -113,7 +104,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
   else if (userProfile?.user_level === UserRole.PREMIUM) {
     menuItems.push(
       {
-        name: translations.projects || "프로젝트",
+        name: translations.projects || "Projects",
         href: `/${locale}/dashboard/projects`,
         icon: DocumentTextIcon,
         active: isActive("/projects"),
@@ -161,7 +152,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
               className="flex flex-col items-center justify-center w-16 py-1 text-[10px] font-medium text-red-400 hover:text-red-300"
             >
               <ArrowRightOnRectangleIcon className="h-5 w-5 mb-0.5" />
-              <span className="truncate w-full text-center">{translations.logout || "로그아웃"}</span>
+              <span className="truncate w-full text-center">{translations.logout || "Logout"}</span>
             </button>
           </nav>
         </div>
@@ -233,7 +224,7 @@ export default function DashboardSidebar({ locale, translations, isMobile = fals
             className="flex items-center w-full px-4 py-3 text-sm font-medium text-red-400 hover:bg-[#1f2937] rounded-md transition-colors"
           >
             <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />
-            {translations.logout || "로그아웃"}
+            {translations.logout || "Logout"}
           </button>
         </div>
       </div>

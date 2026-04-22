@@ -10,6 +10,8 @@ import {
   EyeIcon,
   EyeSlashIcon,
   LanguageIcon,
+  SparklesIcon,
+  ChevronUpDownIcon,
 } from '@heroicons/react/24/outline';
 import { Combobox } from '@headlessui/react';
 import Image from 'next/image';
@@ -19,9 +21,9 @@ import { uploadImageToStorage } from '@/lib/imageUtils';
 import { getAllTags, createTag } from '@/lib/projects';
 import type { ProjectTag } from '@/lib/database.types';
 import GalleryDropZone from './GalleryDropZone';
+import { supabase } from '@/lib/supabase';
 
 export interface ProjectFormData {
-  // Common (English single-value fields)
   client: string;
   country: string;
   date: string;
@@ -34,13 +36,11 @@ export interface ProjectFormData {
   video_url: string;
   video_thumbnail_url: string;
   tags: string[];
-  // Korean
   title: string;
   description: string;
   content: string;
   category: string;
   industry: string;
-  // English
   title_en: string;
   description_en: string;
   content_en: string;
@@ -67,39 +67,18 @@ interface ProjectFormProps {
 function buildInitialForm(initialData?: Partial<ProjectFormData>): ProjectFormData {
   const today = new Date().toISOString().split('T')[0];
   const base: ProjectFormData = {
-    client: '',
-    country: '',
-    date: today,
-    service: '',
-    slug: '',
-    visibility: 'public',
-    is_featured: false,
-    image_url: '',
-    gallery_images: [],
-    video_url: '',
-    video_thumbnail_url: '',
-    tags: [],
-    title: '',
-    description: '',
-    content: '',
-    category: '',
-    industry: '',
-    title_en: '',
-    description_en: '',
-    content_en: '',
-    category_en: '',
-    industry_en: '',
+    client: '', country: '', date: today, service: '',
+    slug: '', visibility: 'public', is_featured: false,
+    image_url: '', gallery_images: [], video_url: '', video_thumbnail_url: '',
+    tags: [], title: '', description: '', content: '', category: '', industry: '',
+    title_en: '', description_en: '', content_en: '', category_en: '', industry_en: '',
     translation_status: 'pending',
   };
-
   if (!initialData) return base;
-
   return {
     ...base,
     ...initialData,
-    date: initialData.date
-      ? initialData.date.split('T')[0]
-      : today,
+    date: initialData.date ? initialData.date.split('T')[0] : today,
     gallery_images: initialData.gallery_images ?? [],
     tags: initialData.tags ?? [],
     title_en: initialData.title_en ?? '',
@@ -113,25 +92,69 @@ function buildInitialForm(initialData?: Partial<ProjectFormData>): ProjectFormDa
   };
 }
 
+// Reusable suggestion combobox
+function SuggestCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
+  className?: string;
+}) {
+  const [query, setQuery] = useState('');
+  const filtered = query
+    ? options.filter(o => o.toLowerCase().includes(query.toLowerCase()) && o !== value)
+    : options.filter(o => o !== value);
+
+  return (
+    <Combobox value={value} onChange={onChange}>
+      <div className="relative">
+        <Combobox.Input
+          className={`${className} pr-8`}
+          displayValue={(v: string) => v}
+          onChange={e => {
+            onChange(e.target.value);
+            setQuery(e.target.value);
+          }}
+          placeholder={placeholder}
+        />
+        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+          <ChevronUpDownIcon className="h-4 w-4 text-gray-500" />
+        </Combobox.Button>
+        <Combobox.Options className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md bg-gray-800 py-1 text-sm shadow-lg ring-1 ring-gray-600 focus:outline-none">
+          {filtered.length === 0 ? null : filtered.map(opt => (
+            <Combobox.Option
+              key={opt}
+              value={opt}
+              className={({ active }) =>
+                `cursor-pointer select-none py-2 px-3 ${active ? 'bg-amber-600 text-white' : 'text-gray-300'}`
+              }
+            >
+              {opt}
+            </Combobox.Option>
+          ))}
+        </Combobox.Options>
+      </div>
+    </Combobox>
+  );
+}
+
 export default function ProjectForm({
-  mode,
-  initialData,
-  onSubmit,
-  onCancel,
-  locale,
-  translations,
+  mode, initialData, onSubmit, onCancel, locale, translations,
 }: ProjectFormProps) {
   const t = translations;
-
   const [form, setForm] = useState<ProjectFormData>(() => buildInitialForm(initialData));
 
   // Thumbnail
   const thumbnailFileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailDropAreaRef = useRef<HTMLDivElement>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
-    initialData?.image_url ?? null
-  );
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(initialData?.image_url ?? null);
   const [isThumbnailDragging, setIsThumbnailDragging] = useState(false);
 
   // Gallery
@@ -141,12 +164,17 @@ export default function ProjectForm({
 
   // Tags
   const [allTags, setAllTags] = useState<ProjectTag[]>([]);
-  const [selectedTagNames, setSelectedTagNames] = useState<string[]>(
-    initialData?.tags ?? []
-  );
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>(initialData?.tags ?? []);
   const [tagQuery, setTagQuery] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagCreateError, setTagCreateError] = useState<string | null>(null);
+
+  // DB suggestions for service / category / industry
+  const [serviceOptions, setServiceOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+  const [categoryEnOptions, setCategoryEnOptions] = useState<string[]>([]);
+  const [industryEnOptions, setIndustryEnOptions] = useState<string[]>([]);
 
   // Slug
   const [slugLoading, setSlugLoading] = useState(false);
@@ -157,11 +185,13 @@ export default function ProjectForm({
   const [translatingToKo, setTranslatingToKo] = useState(false);
   const [translateEnError, setTranslateEnError] = useState<string | null>(null);
   const [translateKoError, setTranslateKoError] = useState<string | null>(null);
-  const [apiUsage, setApiUsage] = useState<{
-    used: number;
-    limit: number;
-    remaining: number;
-  } | null>(null);
+  const [apiUsage, setApiUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
+
+  // AI Polish
+  const [polishingKo, setPolishingKo] = useState(false);
+  const [polishingEn, setPolishingEn] = useState(false);
+  const [polishKoError, setPolishKoError] = useState<string | null>(null);
+  const [polishEnError, setPolishEnError] = useState<string | null>(null);
 
   // Submit
   const [saving, setSaving] = useState(false);
@@ -172,6 +202,7 @@ export default function ProjectForm({
       if (result.success) setAllTags(result.data);
     });
     fetchApiUsage();
+    fetchSuggestions();
   }, []);
 
   const fetchApiUsage = async () => {
@@ -186,8 +217,27 @@ export default function ProjectForm({
           remaining: data.usage.remaining ?? 0,
         });
       }
-    } catch {
-      // silent
+    } catch { /* silent */ }
+  };
+
+  const fetchSuggestions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('service, category, industry, category_en, industry_en');
+      if (error) { console.error('[fetchSuggestions] Supabase error:', error); return; }
+      if (!data) return;
+
+      const unique = (arr: (string | null | undefined)[]) =>
+        [...new Set(arr.filter((v): v is string => !!v && v.trim() !== ''))].sort();
+
+      setServiceOptions(unique(data.map((p: any) => p.service)));
+      setCategoryOptions(unique(data.map((p: any) => p.category)));
+      setIndustryOptions(unique(data.map((p: any) => p.industry)));
+      setCategoryEnOptions(unique(data.map((p: any) => p.category_en)));
+      setIndustryEnOptions(unique(data.map((p: any) => p.industry_en)));
+    } catch (err) {
+      console.error('[fetchSuggestions] unexpected error:', err);
     }
   };
 
@@ -195,7 +245,7 @@ export default function ProjectForm({
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  // Slug generation
+  // Slug
   const generateSlugFromTitle = async (title: string) => {
     if (!title.trim()) return;
     setSlugLoading(true);
@@ -206,8 +256,7 @@ export default function ProjectForm({
         body: JSON.stringify({ text: title, targetLang: 'EN', sourceLang: 'KO' }),
       });
       const data = res.ok ? await res.json() : null;
-      const translatedTitle = data?.translated || title;
-      setField('slug', generateSlug({ title: translatedTitle, date: form.date }));
+      setField('slug', generateSlug({ title: data?.translated || title, date: form.date }));
     } catch {
       setField('slug', generateSlug({ title, date: form.date }));
     } finally {
@@ -216,48 +265,32 @@ export default function ProjectForm({
   };
 
   const handleTitleBlur = () => {
-    const isEditWithExistingSlug = mode === 'edit' && !!initialData?.slug;
-    if (!slugManuallyEdited && form.title && !isEditWithExistingSlug) {
+    if (!slugManuallyEdited && form.title && !(mode === 'edit' && initialData?.slug)) {
       generateSlugFromTitle(form.title);
     }
   };
 
-  const handleRegenerateSlug = () => {
-    if (!form.title) return;
-    setSlugManuallyEdited(false);
-    generateSlugFromTitle(form.title);
-  };
-
-  // Translation helpers
+  // Translation
   const translateField = async (text: string, targetLang: 'EN' | 'KO'): Promise<string> => {
     if (!text.trim()) return '';
-    const sourceLang = targetLang === 'EN' ? 'KO' : 'EN';
     const res = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, targetLang, sourceLang }),
+      body: JSON.stringify({ text, targetLang, sourceLang: targetLang === 'EN' ? 'KO' : 'EN' }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Translation failed');
-    }
-    const data = await res.json();
-    return data.translated || text;
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Translation failed');
+    return (await res.json()).translated || text;
   };
 
   const handleTranslateToEn = async () => {
     setTranslatingToEn(true);
     setTranslateEnError(null);
     try {
-      const koFields: Array<keyof ProjectFormData> = [
-        'title', 'category', 'industry', 'description', 'content',
-      ];
+      const fields: Array<keyof ProjectFormData> = ['title', 'category', 'industry', 'description', 'content'];
       const updates: Partial<ProjectFormData> = {};
-      for (const f of koFields) {
+      for (const f of fields) {
         const val = form[f] as string;
-        if (val.trim()) {
-          (updates as any)[`${f}_en`] = await translateField(val, 'EN');
-        }
+        if (val.trim()) (updates as any)[`${f}_en`] = await translateField(val, 'EN');
       }
       setForm(prev => ({ ...prev, ...updates, translation_status: 'translated' }));
       fetchApiUsage();
@@ -272,19 +305,15 @@ export default function ProjectForm({
     setTranslatingToKo(true);
     setTranslateKoError(null);
     try {
-      const fieldPairs: Array<{ en: keyof ProjectFormData; ko: keyof ProjectFormData }> = [
-        { en: 'title_en', ko: 'title' },
-        { en: 'category_en', ko: 'category' },
-        { en: 'industry_en', ko: 'industry' },
-        { en: 'description_en', ko: 'description' },
+      const pairs = [
+        { en: 'title_en', ko: 'title' }, { en: 'category_en', ko: 'category' },
+        { en: 'industry_en', ko: 'industry' }, { en: 'description_en', ko: 'description' },
         { en: 'content_en', ko: 'content' },
-      ];
+      ] as const;
       const updates: Partial<ProjectFormData> = {};
-      for (const { en, ko } of fieldPairs) {
+      for (const { en, ko } of pairs) {
         const val = form[en] as string;
-        if (val.trim()) {
-          (updates as any)[ko] = await translateField(val, 'KO');
-        }
+        if (val.trim()) (updates as any)[ko] = await translateField(val, 'KO');
       }
       setForm(prev => ({ ...prev, ...updates, translation_status: 'translated' }));
       fetchApiUsage();
@@ -295,7 +324,42 @@ export default function ProjectForm({
     }
   };
 
-  // Thumbnail handlers
+  // AI Polish
+  const handlePolish = async (lang: 'ko' | 'en') => {
+    const descField = lang === 'ko' ? 'description' : 'description_en';
+    const text = form[descField];
+    if (!text.trim()) return;
+
+    if (lang === 'ko') { setPolishingKo(true); setPolishKoError(null); }
+    else { setPolishingEn(true); setPolishEnError(null); }
+
+    try {
+      const res = await fetch('/api/ai-polish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: text,
+          title: lang === 'ko' ? form.title : form.title_en,
+          client: form.client,
+          country: form.country,
+          category: lang === 'ko' ? form.category : form.category_en,
+          industry: lang === 'ko' ? form.industry : form.industry_en,
+          lang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Polish failed');
+      setField(descField, data.polished);
+    } catch (err: any) {
+      if (lang === 'ko') setPolishKoError(err.message || t?.polish?.error);
+      else setPolishEnError(err.message || t?.polish?.error);
+    } finally {
+      if (lang === 'ko') setPolishingKo(false);
+      else setPolishingEn(false);
+    }
+  };
+
+  // Thumbnail
   const applyThumbnailFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     if (thumbnailPreview?.startsWith('blob:')) URL.revokeObjectURL(thumbnailPreview);
@@ -303,24 +367,8 @@ export default function ProjectForm({
     setThumbnailPreview(URL.createObjectURL(file));
   };
 
-  const handleThumbnailInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) applyThumbnailFile(file);
-  };
-
-  const handleRemoveThumbnail = () => {
-    if (thumbnailPreview?.startsWith('blob:')) URL.revokeObjectURL(thumbnailPreview);
-    setThumbnailFile(null);
-    setThumbnailPreview(null);
-  };
-
-  const handleThumbnailDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsThumbnailDragging(true);
-  };
-  const handleThumbnailDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const handleThumbnailDragEnter = (e: React.DragEvent) => { e.preventDefault(); setIsThumbnailDragging(true); };
+  const handleThumbnailDragOver = (e: React.DragEvent) => { e.preventDefault(); };
   const handleThumbnailDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     const root = thumbnailDropAreaRef.current;
@@ -336,7 +384,7 @@ export default function ProjectForm({
     if (file) applyThumbnailFile(file);
   };
 
-  // Tag handlers
+  // Tags
   const handleTagToggle = (tagName: string) => {
     setSelectedTagNames(prev =>
       prev.includes(tagName) ? prev.filter(n => n !== tagName) : [...prev, tagName]
@@ -350,9 +398,7 @@ export default function ProjectForm({
     try {
       const result = await createTag(tagQuery.trim());
       if (!result.success || !result.data) throw new Error(result.error || 'Tag creation failed');
-      setAllTags(prev =>
-        prev.some(t => t.id === result.data!.id) ? prev : [...prev, result.data!]
-      );
+      setAllTags(prev => prev.some(t => t.id === result.data!.id) ? prev : [...prev, result.data!]);
       if (!selectedTagNames.includes(result.data.name)) {
         setSelectedTagNames(prev => [...prev, result.data!.name]);
       }
@@ -371,31 +417,22 @@ export default function ProjectForm({
     setSaving(true);
     setUploadError(null);
     try {
-      // Upload thumbnail
       let finalImageUrl = thumbnailPreview ?? form.image_url;
-      if (thumbnailFile) {
-        finalImageUrl = await uploadImageToStorage(thumbnailFile);
-      }
+      if (thumbnailFile) finalImageUrl = await uploadImageToStorage(thumbnailFile);
 
-      // Upload gallery images
       const finalGalleryUrls: string[] = [];
       for (const img of galleryImages) {
-        if (img.file) {
-          finalGalleryUrls.push(await uploadImageToStorage(img.file));
-        } else if (img.preview) {
-          finalGalleryUrls.push(img.preview);
-        }
+        if (img.file) finalGalleryUrls.push(await uploadImageToStorage(img.file));
+        else if (img.preview) finalGalleryUrls.push(img.preview);
       }
 
-      const submitData: ProjectFormData = {
+      await onSubmit({
         ...form,
         image_url: finalImageUrl ?? '',
         gallery_images: finalGalleryUrls,
         tags: selectedTagNames,
         slug: form.slug || generateSlug({ title: form.title, date: form.date }),
-      };
-
-      await onSubmit(submitData);
+      });
     } catch (err: any) {
       setUploadError(err.message || '저장 중 오류가 발생했습니다.');
     } finally {
@@ -403,11 +440,9 @@ export default function ProjectForm({
     }
   };
 
-  const inputCls =
-    'w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm';
+  const inputCls = 'w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm';
   const labelCls = 'block text-sm font-medium text-gray-300 mb-1';
-  const sectionTitleCls =
-    'text-base font-semibold text-white border-b border-gray-700 pb-2 mb-4';
+  const sectionTitleCls = 'text-base font-semibold text-white border-b border-gray-700 pb-2 mb-4';
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full">
@@ -416,28 +451,37 @@ export default function ProjectForm({
 
           {/* ── Section 1: Basic Info ── */}
           <section>
-            <h3 className={sectionTitleCls}>{t?.sections?.basicInfo ?? 'Basic Info'}</h3>
-            <div className="space-y-4">
-              <div>
-                <label className={labelCls}>{t?.fields?.client ?? 'Client'}</label>
-                <input
-                  type="text"
-                  value={form.client}
-                  onChange={e => setField('client', e.target.value)}
-                  className={inputCls}
-                  placeholder={t?.fields?.clientPlaceholder ?? 'e.g. Hyundai Motor'}
-                />
-              </div>
+            <div className="flex items-baseline gap-3 border-b border-gray-700 pb-2 mb-4">
+              <h3 className="text-base font-semibold text-white">
+                {t?.sections?.basicInfo ?? 'Basic Info'}
+              </h3>
+              <span className="text-xs text-amber-400">
+                {t?.sections?.basicInfoNote ?? 'Please write in English'}
+              </span>
+            </div>
 
-              <div>
-                <label className={labelCls}>{t?.fields?.country ?? 'Country'}</label>
-                <input
-                  type="text"
-                  value={form.country}
-                  onChange={e => setField('country', e.target.value)}
-                  className={inputCls}
-                  placeholder={t?.fields?.countryPlaceholder ?? 'e.g. Germany'}
-                />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>{t?.fields?.client ?? 'Client'}</label>
+                  <input
+                    type="text"
+                    value={form.client}
+                    onChange={e => setField('client', e.target.value)}
+                    className={inputCls}
+                    placeholder={t?.fields?.clientPlaceholder ?? 'e.g. Hyundai Motor'}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>{t?.fields?.country ?? 'Country'}</label>
+                  <input
+                    type="text"
+                    value={form.country}
+                    onChange={e => setField('country', e.target.value)}
+                    className={inputCls}
+                    placeholder={t?.fields?.countryPlaceholder ?? 'e.g. Germany'}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -452,12 +496,12 @@ export default function ProjectForm({
                 </div>
                 <div>
                   <label className={labelCls}>{t?.fields?.service ?? 'Service'}</label>
-                  <input
-                    type="text"
+                  <SuggestCombobox
                     value={form.service}
-                    onChange={e => setField('service', e.target.value)}
-                    className={inputCls}
+                    onChange={val => setField('service', val)}
+                    options={serviceOptions}
                     placeholder={t?.fields?.servicePlaceholder ?? 'e.g. BX, Web Design'}
+                    className={inputCls}
                   />
                 </div>
               </div>
@@ -467,6 +511,7 @@ export default function ProjectForm({
           {/* ── Section 2: Bilingual Content ── */}
           <section>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
               {/* KO Column */}
               <div className="space-y-4">
                 <h3 className={sectionTitleCls}>
@@ -487,26 +532,27 @@ export default function ProjectForm({
 
                 <div>
                   <label className={labelCls}>{t?.fields?.category ?? '카테고리'}</label>
-                  <input
-                    type="text"
+                  <SuggestCombobox
                     value={form.category}
-                    onChange={e => setField('category', e.target.value)}
+                    onChange={val => setField('category', val)}
+                    options={categoryOptions}
+                    placeholder={t?.fields?.categoryPlaceholder ?? 'e.g. Web Design'}
                     className={inputCls}
-                    placeholder={t?.fields?.categoryPlaceholder ?? '예: 웹 디자인, 영상 제작'}
                   />
                 </div>
 
                 <div>
                   <label className={labelCls}>{t?.fields?.industry ?? '산업 분야'}</label>
-                  <input
-                    type="text"
+                  <SuggestCombobox
                     value={form.industry}
-                    onChange={e => setField('industry', e.target.value)}
+                    onChange={val => setField('industry', val)}
+                    options={industryOptions}
+                    placeholder={t?.fields?.industryPlaceholder ?? 'e.g. IT / Telecom'}
                     className={inputCls}
-                    placeholder={t?.fields?.industryPlaceholder ?? '예: IT/통신/전자'}
                   />
                 </div>
 
+                {/* Description + Polish */}
                 <div>
                   <label className={labelCls}>{t?.fields?.description ?? '요약 설명'}</label>
                   <textarea
@@ -514,8 +560,24 @@ export default function ProjectForm({
                     onChange={e => setField('description', e.target.value)}
                     rows={3}
                     className={inputCls}
-                    placeholder={t?.fields?.descriptionPlaceholder ?? '프로젝트를 한 줄로 설명해 주세요'}
+                    placeholder={t?.fields?.descriptionPlaceholder ?? '특징, 느낌, 하고 싶은 말을 자유롭게 적어보세요'}
                   />
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePolish('ko')}
+                      disabled={polishingKo || !form.description.trim()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-700 text-white rounded-md hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs"
+                    >
+                      {polishingKo ? (
+                        <><ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />{t?.polish?.polishing ?? '정리 중...'}</>
+                      ) : (
+                        <><SparklesIcon className="h-3.5 w-3.5" />{t?.polish?.button ?? '✨ 내용 정리'}</>
+                      )}
+                    </button>
+                    <span className="text-xs text-gray-500">{t?.polish?.hint ?? 'AI가 소개 문구로 다듬어 드립니다'}</span>
+                  </div>
+                  {polishKoError && <p className="mt-1 text-xs text-red-400">{polishKoError}</p>}
                 </div>
 
                 <div>
@@ -529,7 +591,7 @@ export default function ProjectForm({
                   />
                 </div>
 
-                {/* Translate → EN button */}
+                {/* Translate → EN */}
                 <div>
                   <button
                     type="button"
@@ -538,20 +600,12 @@ export default function ProjectForm({
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
                   >
                     {translatingToEn ? (
-                      <>
-                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                        {t?.translate?.translating ?? '번역 중...'}
-                      </>
+                      <><ArrowPathIcon className="h-4 w-4 animate-spin" />{t?.translate?.translating ?? '번역 중...'}</>
                     ) : (
-                      <>
-                        <LanguageIcon className="h-4 w-4" />
-                        🤖 → {t?.translate?.toEnglish ?? '영어로 번역'}
-                      </>
+                      <><LanguageIcon className="h-4 w-4" />🤖 → {t?.translate?.toEnglish ?? '영어로 번역'}</>
                     )}
                   </button>
-                  {translateEnError && (
-                    <p className="mt-1 text-xs text-red-400">{translateEnError}</p>
-                  )}
+                  {translateEnError && <p className="mt-1 text-xs text-red-400">{translateEnError}</p>}
                 </div>
               </div>
 
@@ -574,26 +628,27 @@ export default function ProjectForm({
 
                 <div>
                   <label className={labelCls}>Category</label>
-                  <input
-                    type="text"
+                  <SuggestCombobox
                     value={form.category_en}
-                    onChange={e => setField('category_en', e.target.value)}
-                    className={inputCls}
+                    onChange={val => setField('category_en', val)}
+                    options={categoryEnOptions}
                     placeholder="e.g. Web Design, Video Production"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
                   <label className={labelCls}>Industry</label>
-                  <input
-                    type="text"
+                  <SuggestCombobox
                     value={form.industry_en}
-                    onChange={e => setField('industry_en', e.target.value)}
-                    className={inputCls}
+                    onChange={val => setField('industry_en', val)}
+                    options={industryEnOptions}
                     placeholder="e.g. IT / Telecom / Electronics"
+                    className={inputCls}
                   />
                 </div>
 
+                {/* Description EN + Polish */}
                 <div>
                   <label className={labelCls}>Description</label>
                   <textarea
@@ -603,6 +658,22 @@ export default function ProjectForm({
                     className={inputCls}
                     placeholder="Describe the project in one sentence"
                   />
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePolish('en')}
+                      disabled={polishingEn || !form.description_en.trim()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-700 text-white rounded-md hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs"
+                    >
+                      {polishingEn ? (
+                        <><ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />{t?.polish?.polishing ?? 'Polishing...'}</>
+                      ) : (
+                        <><SparklesIcon className="h-3.5 w-3.5" />{t?.polish?.button ?? '✨ Polish'}</>
+                      )}
+                    </button>
+                    <span className="text-xs text-gray-500">{t?.polish?.hint ?? 'AI rewrites your notes'}</span>
+                  </div>
+                  {polishEnError && <p className="mt-1 text-xs text-red-400">{polishEnError}</p>}
                 </div>
 
                 <div>
@@ -616,7 +687,7 @@ export default function ProjectForm({
                   />
                 </div>
 
-                {/* Translate → KO button */}
+                {/* Translate → KO */}
                 <div>
                   <button
                     type="button"
@@ -625,20 +696,12 @@ export default function ProjectForm({
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
                   >
                     {translatingToKo ? (
-                      <>
-                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                        {t?.translate?.translating ?? '번역 중...'}
-                      </>
+                      <><ArrowPathIcon className="h-4 w-4 animate-spin" />{t?.translate?.translating ?? '번역 중...'}</>
                     ) : (
-                      <>
-                        <LanguageIcon className="h-4 w-4" />
-                        🤖 → {t?.translate?.toKorean ?? '한국어로 번역'}
-                      </>
+                      <><LanguageIcon className="h-4 w-4" />🤖 → {t?.translate?.toKorean ?? '한국어로 번역'}</>
                     )}
                   </button>
-                  {translateKoError && (
-                    <p className="mt-1 text-xs text-red-400">{translateKoError}</p>
-                  )}
+                  {translateKoError && <p className="mt-1 text-xs text-red-400">{translateKoError}</p>}
                 </div>
               </div>
             </div>
@@ -671,10 +734,7 @@ export default function ProjectForm({
                   <input
                     type="text"
                     value={form.slug}
-                    onChange={e => {
-                      setSlugManuallyEdited(true);
-                      setField('slug', e.target.value);
-                    }}
+                    onChange={e => { setSlugManuallyEdited(true); setField('slug', e.target.value); }}
                     disabled={slugLoading}
                     className={`${inputCls} font-mono disabled:opacity-50`}
                     placeholder={t?.fields?.slugPlaceholder ?? 'e.g. 2025-project-name-abc123'}
@@ -687,7 +747,7 @@ export default function ProjectForm({
                 </div>
                 <button
                   type="button"
-                  onClick={handleRegenerateSlug}
+                  onClick={() => { setSlugManuallyEdited(false); generateSlugFromTitle(form.title); }}
                   disabled={slugLoading || !form.title}
                   title={t?.translate?.regenerateSlug ?? '슬러그 재생성'}
                   className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -700,11 +760,6 @@ export default function ProjectForm({
                   {t?.translate?.slugManualHint ?? '슬러그를 직접 수정할 수 있습니다.'}
                 </p>
               )}
-              {slugLoading && (
-                <p className="mt-1 text-xs text-gray-400">
-                  {t?.translate?.slugGenerating ?? '슬러그 생성 중...'}
-                </p>
-              )}
             </div>
           </section>
 
@@ -712,7 +767,6 @@ export default function ProjectForm({
           <section>
             <h3 className={sectionTitleCls}>{t?.sections?.media ?? 'Media'}</h3>
 
-            {/* Thumbnail */}
             <div className="mb-4">
               <label className={labelCls}>
                 {t?.fields?.thumbnail ?? '대표 이미지'}
@@ -723,165 +777,92 @@ export default function ProjectForm({
               <div
                 ref={thumbnailDropAreaRef}
                 className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                  isThumbnailDragging
-                    ? 'border-amber-500 bg-amber-900/20'
-                    : 'border-gray-600 hover:border-gray-500'
+                  isThumbnailDragging ? 'border-amber-500 bg-amber-900/20' : 'border-gray-600 hover:border-gray-500'
                 }`}
                 onDragEnter={handleThumbnailDragEnter}
                 onDragOver={handleThumbnailDragOver}
                 onDragLeave={handleThumbnailDragLeave}
                 onDrop={handleThumbnailDrop}
-                onClick={() => {
-                  if (!thumbnailPreview) thumbnailFileInputRef.current?.click();
-                }}
+                onClick={() => { if (!thumbnailPreview) thumbnailFileInputRef.current?.click(); }}
                 style={{ cursor: thumbnailPreview ? 'default' : 'pointer' }}
               >
                 {thumbnailPreview ? (
                   <div className="relative inline-block">
-                    <Image
-                      src={thumbnailPreview}
-                      alt="Thumbnail preview"
-                      width={320}
-                      height={180}
-                      className="mx-auto rounded-lg object-cover"
-                      unoptimized
-                    />
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleRemoveThumbnail();
-                      }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                    >
+                    <Image src={thumbnailPreview} alt="Thumbnail preview" width={320} height={180}
+                      className="mx-auto rounded-lg object-cover" unoptimized />
+                    <button type="button"
+                      onClick={e => { e.stopPropagation(); if (thumbnailPreview?.startsWith('blob:')) URL.revokeObjectURL(thumbnailPreview); setThumbnailFile(null); setThumbnailPreview(null); }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors">
                       <XMarkIcon className="h-4 w-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        thumbnailFileInputRef.current?.click();
-                      }}
-                      className="mt-2 block w-full text-xs text-gray-400 hover:text-gray-300 text-center"
-                    >
+                    <button type="button"
+                      onClick={e => { e.stopPropagation(); thumbnailFileInputRef.current?.click(); }}
+                      className="mt-2 block w-full text-xs text-gray-400 hover:text-gray-300 text-center">
                       Click to replace
                     </button>
                   </div>
                 ) : (
                   <div>
                     <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-400">
-                      Drag & drop or click to upload
-                    </p>
+                    <p className="mt-2 text-sm text-gray-400">Drag & drop or click to upload</p>
                   </div>
                 )}
-                <input
-                  ref={thumbnailFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleThumbnailInputChange}
-                />
+                <input ref={thumbnailFileInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) applyThumbnailFile(f); }} />
               </div>
             </div>
 
-            {/* Gallery */}
             <div className="mb-4">
               <label className={labelCls}>{t?.fields?.gallery ?? '갤러리 이미지'}</label>
-              <GalleryDropZone
-                images={galleryImages}
-                onImagesChange={setGalleryImages}
-                onError={msg => console.warn('[Gallery]', msg)}
-              />
+              <GalleryDropZone images={galleryImages} onImagesChange={setGalleryImages}
+                onError={msg => console.warn('[Gallery]', msg)} />
             </div>
 
-            {/* Video URL */}
             <div>
               <label className={labelCls}>{t?.fields?.videoUrl ?? '동영상 URL'}</label>
-              <input
-                type="url"
-                value={form.video_url}
-                onChange={e => setField('video_url', e.target.value)}
-                className={inputCls}
-                placeholder={t?.fields?.videoUrlPlaceholder ?? 'YouTube or Vimeo URL'}
-              />
+              <input type="url" value={form.video_url}
+                onChange={e => setField('video_url', e.target.value)} className={inputCls}
+                placeholder={t?.fields?.videoUrlPlaceholder ?? 'YouTube or Vimeo URL'} />
             </div>
           </section>
 
           {/* ── Section 5: Tags ── */}
           <section>
             <h3 className={sectionTitleCls}>{t?.sections?.tags ?? 'Tags'}</h3>
-
             <div className="flex gap-2 mb-3">
               <Combobox value={tagQuery} onChange={setTagQuery}>
                 <div className="relative flex-1">
-                  <Combobox.Input
-                    className={inputCls}
-                    placeholder={
-                      t?.fields?.tagPlaceholder ?? 'e.g. gamescom, Trade Fair Video'
-                    }
-                    onChange={e => setTagQuery(e.target.value)}
-                  />
+                  <Combobox.Input className={inputCls}
+                    placeholder={t?.fields?.tagPlaceholder ?? 'e.g. gamescom, Trade Fair Video'}
+                    onChange={e => setTagQuery(e.target.value)} />
                   <Combobox.Options className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-gray-600 focus:outline-none text-sm">
-                    {allTags
-                      .filter(tag =>
-                        tag.name.toLowerCase().includes(tagQuery.toLowerCase())
-                      )
-                      .map(tag => (
-                        <Combobox.Option
-                          key={tag.id}
-                          value={tag.name}
-                          className={({ active }) =>
-                            `relative cursor-pointer select-none py-2 pl-8 pr-4 ${
-                              active ? 'bg-amber-600 text-white' : 'text-gray-300'
-                            }`
-                          }
-                          onClick={() => handleTagToggle(tag.name)}
-                        >
-                          {selectedTagNames.includes(tag.name) && (
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-amber-400">
-                              ✓
-                            </span>
-                          )}
-                          {tag.name}
-                        </Combobox.Option>
-                      ))}
+                    {allTags.filter(tag => tag.name.toLowerCase().includes(tagQuery.toLowerCase())).map(tag => (
+                      <Combobox.Option key={tag.id} value={tag.name}
+                        className={({ active }) => `relative cursor-pointer select-none py-2 pl-8 pr-4 ${active ? 'bg-amber-600 text-white' : 'text-gray-300'}`}
+                        onClick={() => handleTagToggle(tag.name)}>
+                        {selectedTagNames.includes(tag.name) && (
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-amber-400">✓</span>
+                        )}
+                        {tag.name}
+                      </Combobox.Option>
+                    ))}
                   </Combobox.Options>
                 </div>
               </Combobox>
-
-              <button
-                type="button"
-                onClick={handleCreateTag}
+              <button type="button" onClick={handleCreateTag}
                 disabled={!tagQuery.trim() || isCreatingTag}
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-              >
-                {isCreatingTag ? (
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                ) : (
-                  <PlusIcon className="h-4 w-4" />
-                )}
+                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm whitespace-nowrap">
+                {isCreatingTag ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
                 {t?.fields?.newTag ?? 'New Tag'}
               </button>
             </div>
-
-            {tagCreateError && (
-              <p className="mb-2 text-xs text-red-400">{tagCreateError}</p>
-            )}
-
+            {tagCreateError && <p className="mb-2 text-xs text-red-400">{tagCreateError}</p>}
             {selectedTagNames.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {selectedTagNames.map(name => (
-                  <span
-                    key={name}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-amber-900/50 text-amber-200 rounded-full text-sm"
-                  >
+                  <span key={name} className="inline-flex items-center gap-1 px-3 py-1 bg-amber-900/50 text-amber-200 rounded-full text-sm">
                     {name}
-                    <button
-                      type="button"
-                      onClick={() => handleTagToggle(name)}
-                      className="text-amber-400 hover:text-amber-200"
-                    >
+                    <button type="button" onClick={() => handleTagToggle(name)} className="text-amber-400 hover:text-amber-200">
                       <XMarkIcon className="h-3 w-3" />
                     </button>
                   </span>
@@ -893,59 +874,37 @@ export default function ProjectForm({
           {/* ── Section 6: Settings ── */}
           <section>
             <h3 className={sectionTitleCls}>{t?.sections?.settings ?? 'Settings'}</h3>
-
             <div className="space-y-4">
-              {/* Visibility */}
               <div>
                 <label className={labelCls}>{t?.fields?.visibility ?? '공개 여부'}</label>
                 <div className="flex gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pf-visibility"
-                      value="public"
-                      checked={form.visibility === 'public'}
-                      onChange={() => setField('visibility', 'public')}
-                      className="text-amber-600 focus:ring-amber-500"
-                    />
+                    <input type="radio" name="pf-visibility" value="public"
+                      checked={form.visibility === 'public'} onChange={() => setField('visibility', 'public')}
+                      className="text-amber-600 focus:ring-amber-500" />
                     <span className="flex items-center gap-1 text-gray-300 text-sm">
-                      <EyeIcon className="h-4 w-4" />
-                      {t?.fields?.visibilityPublic ?? '공개'}
+                      <EyeIcon className="h-4 w-4" />{t?.fields?.visibilityPublic ?? '공개'}
                     </span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pf-visibility"
-                      value="private"
-                      checked={form.visibility === 'private'}
-                      onChange={() => setField('visibility', 'private')}
-                      className="text-amber-600 focus:ring-amber-500"
-                    />
+                    <input type="radio" name="pf-visibility" value="private"
+                      checked={form.visibility === 'private'} onChange={() => setField('visibility', 'private')}
+                      className="text-amber-600 focus:ring-amber-500" />
                     <span className="flex items-center gap-1 text-gray-300 text-sm">
-                      <EyeSlashIcon className="h-4 w-4" />
-                      {t?.fields?.visibilityPrivate ?? '비공개'}
+                      <EyeSlashIcon className="h-4 w-4" />{t?.fields?.visibilityPrivate ?? '비공개'}
                     </span>
                   </label>
                 </div>
               </div>
-
-              {/* Featured */}
               <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.is_featured}
+                <input type="checkbox" checked={form.is_featured}
                   onChange={e => setField('is_featured', e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500 bg-gray-700 border-gray-600 h-4 w-4"
-                />
-                <span className="text-gray-300 text-sm">
-                  {t?.fields?.isFeatured ?? '추천 프로젝트'}
-                </span>
+                  className="rounded text-amber-600 focus:ring-amber-500 bg-gray-700 border-gray-600 h-4 w-4" />
+                <span className="text-gray-300 text-sm">{t?.fields?.isFeatured ?? '추천 프로젝트'}</span>
               </label>
             </div>
           </section>
 
-          {/* Upload error */}
           {uploadError && (
             <div className="p-3 bg-red-900/50 border border-red-700 rounded-md">
               <p className="text-sm text-red-400">{uploadError}</p>
@@ -954,25 +913,16 @@ export default function ProjectForm({
         </div>
       </div>
 
-      {/* ── Section 7: Sticky Footer ── */}
+      {/* ── Sticky Footer ── */}
       <div className="sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700 bg-gray-900 z-10">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-gray-300 bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600 transition-colors text-sm"
-        >
+        <button type="button" onClick={onCancel}
+          className="px-4 py-2 text-gray-300 bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600 transition-colors text-sm">
           {t?.cancel ?? '취소'}
         </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
-        >
+        <button type="submit" disabled={saving}
+          className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm">
           {saving ? (
-            <>
-              <ArrowPathIcon className="h-4 w-4 animate-spin" />
-              {t?.saving ?? '저장 중...'}
-            </>
+            <><ArrowPathIcon className="h-4 w-4 animate-spin" />{t?.saving ?? '저장 중...'}</>
           ) : (
             t?.save ?? '저장'
           )}

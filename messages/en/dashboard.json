@@ -34,6 +34,7 @@
 
     "sections": {
       "basicInfo": "Basic Info",
+      "basicInfoNote": "Please write in English (common language)",
       "koreanContent": "Korean Content",
       "englishContent": "English Content",
       "media": "Media",
@@ -85,6 +86,14 @@
       "slugGenerating": "Generating slug...",
       "slugManualHint": "You can edit the slug manually.",
       "regenerateSlug": "Regenerate Slug"
+    },
+
+    "polish": {
+      "button": "✨ Polish",
+      "polishing": "Polishing...",
+      "hint": "AI will rewrite your notes into a clean project introduction",
+      "error": "An error occurred while polishing.",
+      "noApiKey": "ANTHROPIC_API_KEY is not configured."
     }
   }
 }
