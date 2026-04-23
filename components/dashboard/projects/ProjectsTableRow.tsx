@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
-import { EyeIcon, EyeSlashIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
+import { EyeIcon, EyeSlashIcon, PhotoIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { normalizeImageUrl, isSupabaseStorageUrl } from '@/lib/imageUtils';
 
 interface ProjectsTableRowProps {
@@ -80,7 +81,7 @@ export default function ProjectsTableRow({
         />
       </td>
       <td className="py-1.5 md:py-2 px-2 md:px-4">
-        <div className="w-16 md:w-24 h-12 md:h-16 relative bg-gray-800 rounded overflow-hidden shadow-md">
+        <div className="w-16 md:w-24 h-12 md:h-16 relative bg-gray-800 rounded overflow-hidden shadow-md group">
           {hasValidImage ? (
             <Image
               src={imageUrl}
@@ -97,6 +98,18 @@ export default function ProjectsTableRow({
               <PhotoIcon className="h-4 w-4 md:h-5 md:w-5 text-gray-500" />
               <span className="text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1">이미지 없음</span>
             </div>
+          )}
+          {project.slug && (
+            <Link
+              href={`/${locale}/work/project/${project.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/50 transition-all duration-200"
+              title="Work 페이지에서 보기"
+            >
+              <ArrowTopRightOnSquareIcon className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-md" />
+            </Link>
           )}
         </div>
       </td>

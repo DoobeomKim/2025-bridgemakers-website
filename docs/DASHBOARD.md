@@ -58,6 +58,12 @@ URL 패턴: `/{lang}/dashboard/**`
   - 탭 전환 후 복귀 시 폼 데이터 초기화 버그 수정 (AuthContext SIGNED_IN 이벤트 중복 처리 방지)
   - Tags 입력창에서 쉼표(`,`) 입력 시 즉시 태그 등록 (기존 태그 선택 or 신규 생성)
   - Client 필드를 `SuggestCombobox`로 교체 → 기존 등록된 고객사 자동완성 지원
+- **2026-04-22 개선 (ProjectsTableRow)**:
+  - 썸네일 이미지 hover 시 Work 공개 페이지 링크 오버레이 표시
+  - `/{locale}/work/project/{slug}` 새 탭으로 이동, `ArrowTopRightOnSquareIcon` 아이콘 사용
+  - 미사용 `useEffect` import 제거
+- **2026-04-22 개선 (ProjectForm AI 버튼)**:
+  - AI 내용 정리 버튼 라벨에서 중복 `✨` 이모지 제거 (`SparklesIcon`으로 이미 표시됨)
 
 ### `/dashboard/projects/[id]` — 프로젝트 수정
 

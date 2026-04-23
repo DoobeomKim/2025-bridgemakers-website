@@ -625,7 +625,7 @@ export default function ProjectForm({
                       {polishingKo ? (
                         <><ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />{t?.polish?.polishing ?? '정리 중...'}</>
                       ) : (
-                        <><SparklesIcon className="h-3.5 w-3.5" />{t?.polish?.button ?? '✨ 내용 정리'}</>
+                        <><SparklesIcon className="h-3.5 w-3.5" />{t?.polish?.button ?? '내용 정리'}</>
                       )}
                     </button>
                     <span className="text-xs text-gray-500">{t?.polish?.hint ?? 'AI가 소개 문구로 다듬어 드립니다'}</span>
@@ -721,7 +721,7 @@ export default function ProjectForm({
                       {polishingEn ? (
                         <><ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />{t?.polish?.polishing ?? 'Polishing...'}</>
                       ) : (
-                        <><SparklesIcon className="h-3.5 w-3.5" />{t?.polish?.button ?? '✨ Polish'}</>
+                        <><SparklesIcon className="h-3.5 w-3.5" />{t?.polish?.button ?? 'Polish'}</>
                       )}
                     </button>
                     <span className="text-xs text-gray-500">{t?.polish?.hint ?? 'AI rewrites your notes'}</span>

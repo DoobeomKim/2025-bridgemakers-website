@@ -132,6 +132,12 @@ messages/
   - async/await 전환 + EN 컬럼 미존재 시 기본 컬럼 fallback (페이지 안 깨짐)
 - 홈 페이지 프로젝트 섹션: `title_en` / `category_en` locale에 맞게 우선 표시
 
+**프로젝트 목록 UX 개선 (2026-04-22 오후)**
+- `ProjectsTableRow` 썸네일 hover 시 Work 공개 페이지 바로가기 오버레이 추가
+  - `/{locale}/work/project/{slug}` 새 탭으로 이동
+  - 슬러그 없는 프로젝트는 오버레이 미표시
+- AI 내용 정리 버튼 라벨 이모지(`✨`) 제거 — `SparklesIcon`으로 통일
+
 > **DB 마이그레이션 필요** — 아래 SQL을 Supabase SQL Editor에서 실행해야 영문 필드가 완전히 동작합니다:
 > ```sql
 > ALTER TABLE projects
